@@ -13,6 +13,12 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
+.app-container {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+}
+
 .calculator {
   width: 320px;
   background: #16213e;
@@ -99,4 +105,105 @@ body {
 
 .btn-wide {
   grid-column: span 2;
+}
+
+/* History Panel */
+.history-panel {
+  width: 260px;
+  background: #16213e;
+  border-radius: 20px;
+  padding: 24px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+  max-height: 520px;
+  display: flex;
+  flex-direction: column;
+}
+
+.history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.history-header h2 {
+  color: #e0e0e0;
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.history-clear {
+  background: none;
+  border: none;
+  color: #e94560;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 8px;
+  transition: background 0.15s;
+}
+
+.history-clear:hover {
+  background: rgba(233, 69, 96, 0.15);
+}
+
+.history-list {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.history-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.history-list::-webkit-scrollbar-thumb {
+  background: #0f3460;
+  border-radius: 4px;
+}
+
+.history-item {
+  background: #0f3460;
+  border-radius: 10px;
+  padding: 12px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.history-item:hover {
+  background: #1a4a7a;
+}
+
+.history-expression {
+  color: #7f8c9b;
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+
+.history-result {
+  color: #e0e0e0;
+  font-size: 20px;
+  font-weight: 300;
+}
+
+.history-empty {
+  color: #7f8c9b;
+  font-size: 14px;
+  text-align: center;
+  padding: 40px 0;
+}
+
+/* Responsive: stack on small screens */
+@media (max-width: 660px) {
+  .app-container {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .history-panel {
+    width: 320px;
+    max-height: 300px;
+  }
 }

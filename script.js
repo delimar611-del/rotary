@@ -1,10 +1,13 @@
 const display = document.getElementById('display');
 const expression = document.getElementById('expression');
+const historyList = document.getElementById('history-list');
+const clearHistoryBtn = document.getElementById('clear-history');
 
 let currentValue = '0';
 let previousValue = null;
 let operator = null;
 let shouldResetDisplay = false;
+let history = JSON.parse(localStorage.getItem('calcHistory') || '[]');
 
 function updateDisplay() {
   display.textContent = currentValue;
@@ -38,6 +41,26 @@ function calculate(a, op, b) {
   }
 }
 
+function renderHistory() {
+  if (history.length === 0) {
+    historyList.innerHTML = '<div class="history-empty">No calculations yet</div>';
+    return;
+  }
+  historyList.innerHTML = history.map((item, index) =>
+    `<div class="history-item" data-index="${index}">
+      <div class="history-expression">${item.expr}</div>
+      <div class="history-result">${item.result}</div>
+    </div>`
+  ).join('');
+}
+
+function addToHistory(expr, result) {
+  history.unshift({ expr, result });
+  if (history.length > 50) history.pop();
+  localStorage.setItem('calcHistory', JSON.stringify(history));
+  renderHistory();
+}
+
 function handleNumber(value) {
   if (shouldResetDisplay) {
     currentValue = value;
@@ -62,9 +85,12 @@ function handleOperator(op) {
 
 function handleEquals() {
   if (previousValue === null || operator === null) return;
+  const expr = `${previousValue} ${getOperatorSymbol(operator)} ${currentValue}`;
   const result = calculate(previousValue, operator, currentValue);
-  expression.textContent = `${previousValue} ${getOperatorSymbol(operator)} ${currentValue} =`;
-  currentValue = formatResult(result);
+  const formattedResult = formatResult(result);
+  expression.textContent = `${expr} =`;
+  currentValue = formattedResult;
+  addToHistory(expr, formattedResult);
   previousValue = null;
   operator = null;
   shouldResetDisplay = true;
@@ -130,3 +156,23 @@ document.addEventListener('keydown', (e) => {
   else if (e.key === 'Escape') handleClear();
   else if (e.key === '%') handlePercent();
 });
+
+// Click a history item to load its result
+historyList.addEventListener('click', (e) => {
+  const item = e.target.closest('.history-item');
+  if (!item) return;
+  const index = parseInt(item.dataset.index);
+  currentValue = history[index].result;
+  shouldResetDisplay = true;
+  updateDisplay();
+});
+
+// Clear history
+clearHistoryBtn.addEventListener('click', () => {
+  history = [];
+  localStorage.setItem('calcHistory', JSON.stringify(history));
+  renderHistory();
+});
+
+// Load history on start
+renderHistory();
