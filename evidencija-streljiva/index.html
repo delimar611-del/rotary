@@ -184,6 +184,18 @@
   }
   .flash.show { display: block; }
 
+  .restore-panel {
+    display: none;
+    background: var(--warn-bg);
+    border: 1px solid var(--warn-border);
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin-bottom: 12px;
+    font-size: .9rem;
+  }
+  .restore-panel.show { display: block; }
+  .restore-panel .restore-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+
   /* Tablica */
   .table-tools { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
   .table-tools input {
@@ -318,7 +330,18 @@
     <div class="table-tools no-print">
       <input type="text" id="tableFilter" placeholder="Filtriraj evidenciju (ime, OIB, kalibar, LOT...)">
       <button type="button" class="btn btn-secondary" id="exportBtn">⬇️ Izvoz CSV (Excel)</button>
+      <button type="button" class="btn btn-secondary" id="backupBtn">🗄️ Sigurnosna kopija</button>
+      <button type="button" class="btn btn-secondary" id="restoreBtn">↩️ Vrati iz kopije</button>
+      <input type="file" id="restoreFile" accept=".json,application/json" hidden>
       <button type="button" class="btn btn-secondary" onclick="window.print()">🖨️ Ispis</button>
+    </div>
+    <div class="restore-panel no-print" id="restorePanel">
+      <div id="restorePanelText"></div>
+      <div class="restore-actions">
+        <button type="button" class="btn btn-small btn-primary" id="restoreMergeBtn">Spoji s postojećom evidencijom</button>
+        <button type="button" class="btn btn-small btn-danger" id="restoreReplaceBtn">Zamijeni postojeću evidenciju</button>
+        <button type="button" class="btn btn-small btn-secondary" id="restoreCancelBtn">Odustani</button>
+      </div>
     </div>
     <p class="count" id="recordCount"></p>
     <div class="table-wrap">
@@ -795,6 +818,138 @@
     document.body.removeChild(a);
     URL.revokeObjectURL(a.href);
   });
+
+  /* ---------- Sigurnosna kopija i vraćanje ---------- */
+
+  function downloadFile(name, content, type) {
+    var blob = new Blob([content], { type: type });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(a.href);
+  }
+
+  function stamp() {
+    var d = new Date();
+    function p(n) { return (n < 10 ? "0" : "") + n; }
+    return d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate()) + "-" + p(d.getHours()) + p(d.getMinutes());
+  }
+
+  $("backupBtn").addEventListener("click", function () {
+    if (!records.length) {
+      alert("Evidencija je prazna — nema podataka za sigurnosnu kopiju.");
+      return;
+    }
+    var payload = {
+      aplikacija: "evidencija-streljiva",
+      verzija: 1,
+      izvezeno: nowISO(),
+      brojZapisa: records.length,
+      zapisi: records
+    };
+    downloadFile("sigurnosna-kopija-evidencije-" + stamp() + ".json",
+      JSON.stringify(payload, null, 2), "application/json;charset=utf-8;");
+    showFlash("Sigurnosna kopija je preuzeta (" + records.length + " zapisa). Spremite je na sigurno mjesto.");
+  });
+
+  /* Vraćanje iz kopije */
+  var pendingRestore = null;
+
+  function parseBackup(text) {
+    var data = JSON.parse(text);
+    var list = Array.isArray(data) ? data :
+      (data && Array.isArray(data.zapisi)) ? data.zapisi : null;
+    if (!list) return null;
+    var out = [];
+    list.forEach(function (item) {
+      if (!item || typeof item !== "object") return;
+      var rec = {};
+      FIELDS.forEach(function (f) { rec[f] = String(item[f] == null ? "" : item[f]); });
+      if (!rec.ime && !rec.prezime && !rec.oib) return; /* preskoči neispravne */
+      rec.id = (typeof item.id === "string" && item.id) ? item.id : newId();
+      rec.datum = (typeof item.datum === "string" && item.datum) ? item.datum : nowISO();
+      if (typeof item.izmijenjeno === "string" && item.izmijenjeno) rec.izmijenjeno = item.izmijenjeno;
+      out.push(rec);
+    });
+    return out;
+  }
+
+  function closeRestorePanel() {
+    pendingRestore = null;
+    $("restorePanel").className = "restore-panel no-print";
+    $("restoreFile").value = "";
+  }
+
+  function applyRestore(mode) {
+    if (!pendingRestore) return;
+    var added;
+    if (mode === "replace") {
+      added = pendingRestore.length;
+      records = pendingRestore.slice();
+    } else {
+      var existing = {};
+      records.forEach(function (r) { existing[r.id] = true; });
+      var fresh = pendingRestore.filter(function (r) { return !existing[r.id]; });
+      added = fresh.length;
+      records = records.concat(fresh);
+      /* složi po datumu da redoslijed ostane kronološki */
+      records.sort(function (a, b) { return String(a.datum).localeCompare(String(b.datum)); });
+    }
+    saveRecords(records);
+    resetForm();
+    clearPersonSelection();
+    renderTable();
+    closeRestorePanel();
+    showFlash(mode === "replace"
+      ? "Evidencija je vraćena iz kopije (" + added + " zapisa)."
+      : "Kopija je spojena s evidencijom — dodano novih zapisa: " + added + ".");
+  }
+
+  $("restoreBtn").addEventListener("click", function () { $("restoreFile").click(); });
+
+  $("restoreFile").addEventListener("change", function () {
+    var file = this.files && this.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function () {
+      var list = null;
+      try { list = parseBackup(reader.result); } catch (e) { list = null; }
+      if (!list) {
+        alert("Datoteka nije valjana sigurnosna kopija ove aplikacije.\nOdaberite .json datoteku preuzetu gumbom \"Sigurnosna kopija\".");
+        closeRestorePanel();
+        return;
+      }
+      if (!list.length) {
+        alert("Sigurnosna kopija ne sadrži nijedan zapis.");
+        closeRestorePanel();
+        return;
+      }
+      pendingRestore = list;
+      if (!records.length) {
+        applyRestore("replace");
+        return;
+      }
+      $("restorePanelText").innerHTML =
+        "⚠️ Kopija sadrži <strong>" + list.length + "</strong> zapisa, a postojeća evidencija <strong>" +
+        records.length + "</strong>. Kako želite nastaviti?<br>" +
+        "<strong>Spoji</strong> — zadržava postojeće zapise i dodaje one iz kopije koji nedostaju (bez duplikata). " +
+        "<strong>Zamijeni</strong> — briše postojeću evidenciju i vraća točno stanje iz kopije.";
+      $("restorePanel").className = "restore-panel no-print show";
+      $("restorePanel").scrollIntoView({ behavior: "smooth", block: "center" });
+    };
+    reader.readAsText(file);
+  });
+
+  $("restoreMergeBtn").addEventListener("click", function () { applyRestore("merge"); });
+  $("restoreReplaceBtn").addEventListener("click", function () {
+    if (confirm("Postojeća evidencija (" + records.length + " zapisa) bit će obrisana i zamijenjena kopijom. Nastaviti?")) {
+      applyRestore("replace");
+    }
+  });
+  $("restoreCancelBtn").addEventListener("click", closeRestorePanel);
 
   /* ---------- Init ---------- */
   renderTable();
