@@ -102,6 +102,15 @@
   .selected-person.show { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
   .selected-person strong { color: var(--ok); }
 
+  .person-history { display: none; margin-top: 12px; }
+  .person-history.show { display: block; }
+  .person-history h3 {
+    margin: 0 0 8px;
+    font-size: .92rem;
+    color: var(--accent-dark);
+  }
+  .person-history .table-wrap { max-height: 240px; overflow-y: auto; }
+
   /* Forma */
   form fieldset {
     border: 1px solid var(--border);
@@ -216,7 +225,7 @@
   <section class="card no-print">
     <h2>Pretraga postojećih kupaca</h2>
     <div class="search-row">
-      <input type="text" id="searchInput" placeholder="Pretraži po imenu, prezimenu, OIB-u ili broju oružnog lista..." autocomplete="off">
+      <input type="text" id="searchInput" placeholder="Pretraži po imenu, prezimenu, OIB-u, broju oružnog lista ili broju upisanog oružja..." autocomplete="off">
       <div class="search-results" id="searchResults"></div>
     </div>
     <p class="search-hint">Odaberite kupca iz rezultata — osobni podaci automatski se popunjavaju u obrazac, a vi upišete samo podatke o oružju i streljivu za novu prodaju.</p>
@@ -224,6 +233,7 @@
       <span id="selectedPersonText"></span>
       <button type="button" class="btn btn-small btn-secondary" id="clearPersonBtn">Očisti odabir</button>
     </div>
+    <div class="person-history" id="personHistory"></div>
   </section>
 
   <!-- UNOS -->
@@ -281,6 +291,10 @@
             <input type="text" id="kalibar" required placeholder="npr. 9x19, .22 LR, 12/70">
           </div>
           <div>
+            <label for="proizvodac">Proizvođač streljiva <span class="req">*</span></label>
+            <input type="text" id="proizvodac" required placeholder="npr. Geco, Sellier &amp; Bellot, Fiocchi">
+          </div>
+          <div>
             <label for="brojKomada">Broj komada <span class="req">*</span></label>
             <input type="number" id="brojKomada" required min="1" step="1">
           </div>
@@ -321,6 +335,7 @@
             <th>Br. oružnog lista</th>
             <th>Br. upisanog oružja</th>
             <th>Kalibar</th>
+            <th>Proizvođač</th>
             <th>Br. komada</th>
             <th>LOT</th>
             <th class="no-print">Radnje</th>
@@ -406,17 +421,28 @@
   var searchInput = $("searchInput");
   var searchResults = $("searchResults");
 
-  /* Jedinstveni kupci iz evidencije — po OIB-u (ili oružnom listu ako OIB nedostaje),
-     uzima se najnoviji zapis kako bi podaci bili ažurni. */
-  function uniquePersons() {
+  /* Grupira sve zapise po osobi (OIB je jedinstven za osobu). Svaka grupa
+     sadrži sve kupnje te osobe, jer osoba može imati više oružnih listova
+     i više oružja upisanih u svaki od njih. */
+  function personGroups() {
     var map = {};
-    for (var i = records.length - 1; i >= 0; i--) {
+    var order = [];
+    for (var i = 0; i < records.length; i++) {
       var r = records[i];
       var key = r.oib || ("ol:" + r.oruzniList);
-      if (!map[key]) map[key] = r;
+      if (!map[key]) { map[key] = { key: key, records: [] }; order.push(key); }
+      map[key].records.push(r);
+      map[key].latest = r; /* kasniji zapisi pregaze ranije — ostaje najnoviji */
     }
-    var out = [];
-    for (var k in map) out.push(map[k]);
+    return order.map(function (k) { return map[k]; });
+  }
+
+  function uniqueValues(recs, field) {
+    var seen = {}, out = [];
+    recs.forEach(function (r) {
+      var v = String(r[field] || "").trim();
+      if (v && !seen[v]) { seen[v] = true; out.push(v); }
+    });
     return out;
   }
 
@@ -427,12 +453,18 @@
       searchResults.innerHTML = "";
       return;
     }
-    var hits = uniquePersons().filter(function (p) {
-      return normalize(p.ime).indexOf(q) !== -1 ||
-             normalize(p.prezime).indexOf(q) !== -1 ||
-             normalize(p.ime + " " + p.prezime).indexOf(q) !== -1 ||
-             normalize(p.oib).indexOf(q) !== -1 ||
-             normalize(p.oruzniList).indexOf(q) !== -1;
+    /* pretraga po imenu, prezimenu i OIB-u te po broju oružnog lista i
+       broju upisanog oružja iz BILO KOJE kupnje te osobe */
+    var hits = personGroups().filter(function (g) {
+      var p = g.latest;
+      if (normalize(p.ime).indexOf(q) !== -1 ||
+          normalize(p.prezime).indexOf(q) !== -1 ||
+          normalize(p.ime + " " + p.prezime).indexOf(q) !== -1 ||
+          normalize(p.oib).indexOf(q) !== -1) return true;
+      return g.records.some(function (r) {
+        return normalize(r.oruzniList).indexOf(q) !== -1 ||
+               normalize(r.brojOruzja).indexOf(q) !== -1;
+      });
     }).slice(0, 12);
 
     if (!hits.length) {
@@ -440,12 +472,14 @@
       searchResults.className = "search-results open";
       return;
     }
-    searchResults.innerHTML = hits.map(function (p) {
-      return '<button type="button" data-key="' + escapeHtml(p.id) + '">' +
+    searchResults.innerHTML = hits.map(function (g) {
+      var p = g.latest;
+      return '<button type="button" data-key="' + escapeHtml(g.key) + '">' +
         '<strong>' + escapeHtml(p.ime) + ' ' + escapeHtml(p.prezime) + '</strong><br>' +
         '<span class="meta">OIB: ' + escapeHtml(p.oib) +
-        ' · Oružni list: ' + escapeHtml(p.oruzniList) +
-        ' · ' + escapeHtml(p.prebivaliste) + '</span></button>';
+        ' · Oružni list(ovi): ' + escapeHtml(uniqueValues(g.records, "oruzniList").join(", ")) +
+        ' · ' + escapeHtml(p.prebivaliste) +
+        ' · kupnji: ' + g.records.length + '</span></button>';
     }).join("");
     searchResults.className = "search-results open";
   }
@@ -462,11 +496,14 @@
   searchResults.addEventListener("click", function (e) {
     var btn = e.target.closest("button[data-key]");
     if (!btn) return;
-    var rec = records.filter(function (r) { return r.id === btn.getAttribute("data-key"); })[0];
-    if (rec) selectPerson(rec);
+    var group = personGroups().filter(function (g) { return g.key === btn.getAttribute("data-key"); })[0];
+    if (group) selectPerson(group);
   });
 
-  function selectPerson(rec) {
+  var selectedPersonKey = null;
+
+  function selectPerson(group) {
+    var rec = group.latest;
     $("ime").value = rec.ime;
     $("prezime").value = rec.prezime;
     $("prebivaliste").value = rec.prebivaliste;
@@ -475,19 +512,65 @@
     $("oruzniList").value = rec.oruzniList;
     checkOibField();
 
+    selectedPersonKey = group.key;
+
+    var listovi = uniqueValues(group.records, "oruzniList");
     $("selectedPersonText").innerHTML =
       '<strong>✔ Odabran kupac:</strong> ' + escapeHtml(rec.ime) + ' ' + escapeHtml(rec.prezime) +
       ' (OIB: ' + escapeHtml(rec.oib) + ')' +
-      ' — upišite podatke o oružju i streljivu za novu prodaju.';
+      (listovi.length > 1 ? ' · oružni listovi: ' + escapeHtml(listovi.join(", ")) : '') +
+      ' — upišite podatke o oružju i streljivu za novu prodaju.' +
+      (listovi.length > 1 ? ' Po potrebi promijenite broj oružnog lista u obrascu.' : '');
     $("selectedPerson").className = "selected-person show";
+    renderHistory();
 
     searchResults.className = "search-results";
     searchInput.value = "";
     $("brojOruzja").focus();
   }
 
-  $("clearPersonBtn").addEventListener("click", function () {
+  /* Povijest svih kupnji odabranog kupca */
+  function renderHistory() {
+    var box = $("personHistory");
+    if (!selectedPersonKey) {
+      box.className = "person-history";
+      box.innerHTML = "";
+      return;
+    }
+    var group = personGroups().filter(function (g) { return g.key === selectedPersonKey; })[0];
+    if (!group) {
+      box.className = "person-history";
+      box.innerHTML = "";
+      return;
+    }
+    var rows = group.records.slice().reverse().map(function (r) {
+      return "<tr>" +
+        "<td>" + escapeHtml(formatDate(r.datum)) + "</td>" +
+        "<td>" + escapeHtml(r.oruzniList) + "</td>" +
+        "<td>" + escapeHtml(r.brojOruzja) + "</td>" +
+        "<td>" + escapeHtml(r.kalibar) + "</td>" +
+        "<td>" + escapeHtml(r.proizvodac) + "</td>" +
+        "<td>" + escapeHtml(r.brojKomada) + "</td>" +
+        "<td>" + escapeHtml(r.lot) + "</td>" +
+        "</tr>";
+    }).join("");
+    box.innerHTML =
+      "<h3>Dosadašnje kupnje ovog kupca (" + group.records.length + ")</h3>" +
+      '<div class="table-wrap"><table><thead><tr>' +
+      "<th>Datum</th><th>Oružni list</th><th>Br. oružja</th><th>Kalibar</th>" +
+      "<th>Proizvođač</th><th>Br. komada</th><th>LOT</th>" +
+      "</tr></thead><tbody>" + rows + "</tbody></table></div>";
+    box.className = "person-history show";
+  }
+
+  function clearPersonSelection() {
+    selectedPersonKey = null;
     $("selectedPerson").className = "selected-person";
+    renderHistory();
+  }
+
+  $("clearPersonBtn").addEventListener("click", function () {
+    clearPersonSelection();
     resetForm();
   });
 
@@ -516,7 +599,7 @@
 
   /* ---------- Obrazac ---------- */
 
-  var FIELDS = ["ime", "prezime", "prebivaliste", "policija", "oib", "oruzniList", "brojOruzja", "kalibar", "brojKomada", "lot"];
+  var FIELDS = ["ime", "prezime", "prebivaliste", "policija", "oib", "oruzniList", "brojOruzja", "kalibar", "proizvodac", "brojKomada", "lot"];
 
   function readForm() {
     var data = {};
@@ -548,12 +631,12 @@
 
   $("resetBtn").addEventListener("click", function () {
     resetForm();
-    $("selectedPerson").className = "selected-person";
+    clearPersonSelection();
   });
 
   $("cancelEditBtn").addEventListener("click", function () {
     resetForm();
-    $("selectedPerson").className = "selected-person";
+    clearPersonSelection();
   });
 
   $("entryForm").addEventListener("submit", function (e) {
@@ -588,7 +671,7 @@
     }
 
     resetForm();
-    $("selectedPerson").className = "selected-person";
+    clearPersonSelection();
     renderTable();
   });
 
@@ -612,7 +695,7 @@
       (q ? " · prikazano: " + list.length : "");
 
     if (!list.length) {
-      body.innerHTML = '<tr><td class="empty" colspan="13">' +
+      body.innerHTML = '<tr><td class="empty" colspan="14">' +
         (records.length ? "Nema zapisa koji odgovaraju filtru." :
           "Evidencija je prazna — spremite prvi unos putem obrasca iznad.") +
         '</td></tr>';
@@ -632,6 +715,7 @@
         "<td>" + escapeHtml(r.oruzniList) + "</td>" +
         "<td>" + escapeHtml(r.brojOruzja) + "</td>" +
         "<td>" + escapeHtml(r.kalibar) + "</td>" +
+        "<td>" + escapeHtml(r.proizvodac) + "</td>" +
         "<td>" + escapeHtml(r.brojKomada) + "</td>" +
         "<td>" + escapeHtml(r.lot) + "</td>" +
         '<td class="actions no-print">' +
@@ -667,6 +751,7 @@
       saveRecords(records);
       if (editingId === rec2.id) resetForm();
       renderTable();
+      renderHistory();
       showFlash("Zapis je obrisan iz evidencije.");
     }
   });
@@ -680,7 +765,8 @@
     }
     var header = ["R. br.", "Datum i vrijeme", "Ime", "Prezime", "Prebivalište",
       "Policijska postaja / Policijska uprava", "OIB", "Broj oružnog lista",
-      "Broj upisanog oružja", "Kalibar", "Broj komada", "LOT streljiva", "Zadnja izmjena"];
+      "Broj upisanog oružja", "Kalibar", "Proizvođač streljiva", "Broj komada",
+      "LOT streljiva", "Zadnja izmjena"];
 
     function cell(v) {
       v = String(v == null ? "" : v);
@@ -691,7 +777,8 @@
     var rows = records.map(function (r, i) {
       return [i + 1, formatDate(r.datum), r.ime, r.prezime, r.prebivaliste,
         r.policija, "'" + r.oib, r.oruzniList, r.brojOruzja, r.kalibar,
-        r.brojKomada, r.lot, r.izmijenjeno ? formatDate(r.izmijenjeno) : ""
+        r.proizvodac || "", r.brojKomada, r.lot,
+        r.izmijenjeno ? formatDate(r.izmijenjeno) : ""
       ].map(cell).join(";");
     });
 
