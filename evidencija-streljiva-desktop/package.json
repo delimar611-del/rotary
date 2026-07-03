@@ -1,0 +1,33 @@
+{
+  "name": "evidencija-streljiva",
+  "productName": "Evidencija streljiva",
+  "version": "1.0.0",
+  "description": "Evidencija prodanog streljiva - desktop aplikacija",
+  "main": "main.js",
+  "author": "Evidencija streljiva",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "hr.evidencija.streljiva",
+    "productName": "Evidencija streljiva",
+    "files": [
+      "main.js",
+      "preload.js",
+      "app/**"
+    ],
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "Evidencija streljiva"
+    }
+  }
+}
