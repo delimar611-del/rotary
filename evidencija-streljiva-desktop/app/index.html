@@ -216,6 +216,42 @@
   .count { color: var(--muted); font-size: .85rem; }
   .empty { text-align: center; color: var(--muted); padding: 24px !important; white-space: normal; }
 
+  /* Statistika */
+  .stats-tools { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
+  .stats-tools label { display: flex; align-items: center; gap: 6px; margin: 0; font-size: .85rem; }
+  .stats-tools input[type="date"] {
+    width: auto;
+    padding: 7px 9px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: .9rem;
+    background: #fff;
+  }
+  .range-btn.active { background: var(--accent); color: #fff; }
+  .range-btn.active:hover { background: var(--accent-dark); }
+  .stat-tiles {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .stat-tile {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+    background: #f8fafc;
+  }
+  .stat-tile .label { font-size: .78rem; font-weight: 600; color: var(--muted); }
+  .stat-tile .value { font-size: 1.6rem; font-weight: 600; color: var(--text); margin-top: 2px; }
+  .stats-cols {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+  }
+  .stats-cols h3 { margin: 0 0 8px; font-size: .92rem; color: var(--accent-dark); }
+  .stats-cols .table-wrap { max-height: 300px; overflow-y: auto; }
+  .stats-cols th.num, .stats-cols td.num { text-align: right; font-variant-numeric: tabular-nums; }
+
   @media print {
     header, .no-print { display: none !important; }
     .card { border: none; box-shadow: none; padding: 0; }
@@ -376,6 +412,58 @@
         </thead>
         <tbody id="recordsBody"></tbody>
       </table>
+    </div>
+  </section>
+
+  <!-- STATISTIKA -->
+  <section class="card">
+    <h2>Statistika prodaje</h2>
+    <div class="stats-tools no-print" id="statsTools">
+      <button type="button" class="btn btn-small btn-secondary range-btn active" data-range="all">Sve</button>
+      <button type="button" class="btn btn-small btn-secondary range-btn" data-range="thisMonth">Ovaj mjesec</button>
+      <button type="button" class="btn btn-small btn-secondary range-btn" data-range="lastMonth">Prošli mjesec</button>
+      <button type="button" class="btn btn-small btn-secondary range-btn" data-range="thisYear">Ova godina</button>
+      <label>Od <input type="date" id="statFrom"></label>
+      <label>Do <input type="date" id="statTo"></label>
+    </div>
+    <p class="count" id="statRange"></p>
+    <div class="stat-tiles">
+      <div class="stat-tile">
+        <div class="label">Broj prodaja</div>
+        <div class="value" id="statSales">0</div>
+      </div>
+      <div class="stat-tile">
+        <div class="label">Prodano komada</div>
+        <div class="value" id="statPieces">0</div>
+      </div>
+      <div class="stat-tile">
+        <div class="label">Različitih kupaca</div>
+        <div class="value" id="statBuyers">0</div>
+      </div>
+      <div class="stat-tile">
+        <div class="label">Prosjek komada po prodaji</div>
+        <div class="value" id="statAvg">0</div>
+      </div>
+    </div>
+    <div class="stats-cols">
+      <div>
+        <h3>Prodano po kalibru</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Kalibar</th><th class="num">Prodaja</th><th class="num">Komada</th></tr></thead>
+            <tbody id="statByCaliber"></tbody>
+          </table>
+        </div>
+      </div>
+      <div>
+        <h3>Prodano po proizvođaču</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Proizvođač</th><th class="num">Prodaja</th><th class="num">Komada</th></tr></thead>
+            <tbody id="statByMaker"></tbody>
+          </table>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -736,6 +824,8 @@
     $("recordCount").textContent = "Ukupno zapisa: " + records.length +
       (q ? " · prikazano: " + list.length : "");
 
+    renderStats();
+
     if (!list.length) {
       body.innerHTML = '<tr><td class="empty" colspan="14">' +
         (records.length ? "Nema zapisa koji odgovaraju filtru." :
@@ -841,6 +931,108 @@
     document.body.removeChild(a);
     URL.revokeObjectURL(a.href);
   });
+
+  /* ---------- Statistika prodaje ---------- */
+
+  function pad2(n) { return (n < 10 ? "0" : "") + n; }
+
+  function fmtNum(n) { return Number(n || 0).toLocaleString("hr-HR"); }
+
+  function fmtDateOnly(d) {
+    return pad2(d.getDate()) + "." + pad2(d.getMonth() + 1) + "." + d.getFullYear() + ".";
+  }
+
+  function isoDate(d) {
+    return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate());
+  }
+
+  var statFromInput = $("statFrom");
+  var statToInput = $("statTo");
+
+  function renderBreakdown(id, list, field) {
+    var map = {}, order = [];
+    list.forEach(function (rec) {
+      var raw = String(rec[field] || "").trim();
+      var key = normalize(raw);
+      if (!key) { key = "__nepoznato"; raw = "(nije upisano)"; }
+      if (!map[key]) { map[key] = { name: raw, n: 0, kom: 0 }; order.push(key); }
+      map[key].n += 1;
+      map[key].kom += parseInt(rec.brojKomada, 10) || 0;
+    });
+    var rows = order.map(function (k) { return map[k]; })
+      .sort(function (a, b) { return b.kom - a.kom; });
+    $(id).innerHTML = rows.length
+      ? rows.map(function (r) {
+          return "<tr><td>" + escapeHtml(r.name) + "</td>" +
+            '<td class="num">' + fmtNum(r.n) + "</td>" +
+            '<td class="num">' + fmtNum(r.kom) + "</td></tr>";
+        }).join("")
+      : '<tr><td class="empty" colspan="3">Nema prodaja u odabranom razdoblju.</td></tr>';
+  }
+
+  function renderStats() {
+    var from = statFromInput.value ? new Date(statFromInput.value + "T00:00:00") : null;
+    var to = statToInput.value ? new Date(statToInput.value + "T23:59:59.999") : null;
+
+    var list = records.filter(function (rec) {
+      var d = new Date(rec.datum);
+      if (from && d < from) return false;
+      if (to && d > to) return false;
+      return true;
+    });
+
+    var pieces = 0, buyers = {};
+    list.forEach(function (rec) {
+      pieces += parseInt(rec.brojKomada, 10) || 0;
+      buyers[rec.oib || ("ol:" + rec.oruzniList)] = true;
+    });
+
+    $("statSales").textContent = fmtNum(list.length);
+    $("statPieces").textContent = fmtNum(pieces);
+    $("statBuyers").textContent = fmtNum(Object.keys(buyers).length);
+    $("statAvg").textContent = list.length ? fmtNum(Math.round(pieces / list.length)) : "0";
+
+    $("statRange").textContent = (!from && !to)
+      ? "Razdoblje: cijela evidencija"
+      : "Razdoblje: " + (from ? "od " + fmtDateOnly(from) : "od početka") +
+        (to ? " do " + fmtDateOnly(to) : " do danas");
+
+    renderBreakdown("statByCaliber", list, "kalibar");
+    renderBreakdown("statByMaker", list, "proizvodac");
+  }
+
+  function setActiveRangeBtn(range) {
+    var btns = document.querySelectorAll("#statsTools .range-btn");
+    for (var i = 0; i < btns.length; i++) {
+      btns[i].className = "btn btn-small btn-secondary range-btn" +
+        (btns[i].getAttribute("data-range") === range ? " active" : "");
+    }
+  }
+
+  $("statsTools").addEventListener("click", function (e) {
+    var btn = e.target.closest(".range-btn");
+    if (!btn) return;
+    var range = btn.getAttribute("data-range");
+    var now = new Date();
+    var from = "", to = "";
+    if (range === "thisMonth") {
+      from = isoDate(new Date(now.getFullYear(), now.getMonth(), 1));
+      to = isoDate(new Date(now.getFullYear(), now.getMonth() + 1, 0));
+    } else if (range === "lastMonth") {
+      from = isoDate(new Date(now.getFullYear(), now.getMonth() - 1, 1));
+      to = isoDate(new Date(now.getFullYear(), now.getMonth(), 0));
+    } else if (range === "thisYear") {
+      from = isoDate(new Date(now.getFullYear(), 0, 1));
+      to = isoDate(new Date(now.getFullYear(), 11, 31));
+    }
+    statFromInput.value = from;
+    statToInput.value = to;
+    setActiveRangeBtn(range);
+    renderStats();
+  });
+
+  statFromInput.addEventListener("change", function () { setActiveRangeBtn(""); renderStats(); });
+  statToInput.addEventListener("change", function () { setActiveRangeBtn(""); renderStats(); });
 
   /* ---------- Sigurnosna kopija i vraćanje ---------- */
 
