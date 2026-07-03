@@ -286,7 +286,8 @@
           </div>
           <div>
             <label for="oruzniList">Broj oružnog lista <span class="req">*</span></label>
-            <input type="text" id="oruzniList" required>
+            <input type="text" id="oruzniList" required list="oruzniListOptions">
+            <datalist id="oruzniListOptions"></datalist>
           </div>
         </div>
       </fieldset>
@@ -296,11 +297,13 @@
         <div class="grid">
           <div>
             <label for="brojOruzja">Broj upisanog oružja <span class="req">*</span></label>
-            <input type="text" id="brojOruzja" required>
+            <input type="text" id="brojOruzja" required list="brojOruzjaOptions">
+            <datalist id="brojOruzjaOptions"></datalist>
           </div>
           <div>
             <label for="kalibar">Kalibar <span class="req">*</span></label>
-            <input type="text" id="kalibar" required placeholder="npr. 9x19, .22 LR, 12/70">
+            <input type="text" id="kalibar" required placeholder="npr. 9x19, .22 LR, 12/70" list="kalibarOptions">
+            <datalist id="kalibarOptions"></datalist>
           </div>
           <div>
             <label for="proizvodac">Proizvođač streljiva <span class="req">*</span></label>
@@ -308,7 +311,14 @@
           </div>
           <div>
             <label for="brojKomada">Broj komada <span class="req">*</span></label>
-            <input type="number" id="brojKomada" required min="1" step="1">
+            <input type="number" id="brojKomada" required min="1" step="1" list="brojKomadaOptions">
+            <datalist id="brojKomadaOptions">
+              <option value="5"></option>
+              <option value="10"></option>
+              <option value="20"></option>
+              <option value="50"></option>
+              <option value="100"></option>
+            </datalist>
           </div>
           <div>
             <label for="lot">LOT streljiva <span class="req">*</span></label>
@@ -525,6 +535,20 @@
 
   var selectedPersonKey = null;
 
+  /* Padajući prijedlozi iz prijašnjih kupnji odabranog kupca —
+     osoba može imati više oružnih listova, oružja i kalibara */
+  function fillDatalist(id, values) {
+    $(id).innerHTML = values.map(function (v) {
+      return '<option value="' + escapeHtml(v) + '"></option>';
+    }).join("");
+  }
+
+  function fillPersonDatalists(group) {
+    fillDatalist("oruzniListOptions", group ? uniqueValues(group.records, "oruzniList") : []);
+    fillDatalist("brojOruzjaOptions", group ? uniqueValues(group.records, "brojOruzja") : []);
+    fillDatalist("kalibarOptions", group ? uniqueValues(group.records, "kalibar") : []);
+  }
+
   function selectPerson(group) {
     var rec = group.latest;
     $("ime").value = rec.ime;
@@ -536,6 +560,7 @@
     checkOibField();
 
     selectedPersonKey = group.key;
+    fillPersonDatalists(group);
 
     var listovi = uniqueValues(group.records, "oruzniList");
     $("selectedPersonText").innerHTML =
@@ -588,6 +613,7 @@
 
   function clearPersonSelection() {
     selectedPersonKey = null;
+    fillPersonDatalists(null);
     $("selectedPerson").className = "selected-person";
     renderHistory();
   }
@@ -757,6 +783,10 @@
       if (!rec) return;
       FIELDS.forEach(function (f) { $(f).value = rec[f] || ""; });
       checkOibField();
+      var grp = personGroups().filter(function (g) {
+        return g.key === (rec.oib || ("ol:" + rec.oruzniList));
+      })[0];
+      fillPersonDatalists(grp || null);
       editingId = rec.id;
       $("editBanner").className = "edit-banner show";
       $("formTitle").textContent = "Uređivanje zapisa";
