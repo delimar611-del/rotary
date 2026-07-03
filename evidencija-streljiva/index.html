@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="hr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Evidencija prodanog streljiva</title>
+<style>
+  :root {
+    --bg: #f4f6f9;
+    --card: #ffffff;
+    --border: #d8dee6;
+    --text: #1e2733;
+    --muted: #5c6b7a;
+    --accent: #1d5c9e;
+    --accent-dark: #164a80;
+    --danger: #b3372f;
+    --ok: #2e7d4f;
+    --warn-bg: #fdf3e0;
+    --warn-border: #e0b45c;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Segoe UI", system-ui, -apple-system, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.45;
+  }
+  header {
+    background: var(--accent);
+    color: #fff;
+    padding: 18px 24px;
+  }
+  header h1 { margin: 0; font-size: 1.4rem; font-weight: 600; }
+  header p { margin: 4px 0 0; opacity: .85; font-size: .9rem; }
+  main { max-width: 1200px; margin: 0 auto; padding: 20px 16px 60px; }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 20px;
+    margin-bottom: 22px;
+    box-shadow: 0 1px 3px rgba(20,40,70,.06);
+  }
+  .card h2 {
+    margin: 0 0 12px;
+    font-size: 1.05rem;
+    color: var(--accent-dark);
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 8px;
+  }
+
+  /* Pretraga */
+  .search-row { position: relative; }
+  .search-row input {
+    width: 100%;
+    padding: 10px 12px;
+    font-size: 1rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+  .search-results {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0; right: 0;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: 0 6px 18px rgba(20,40,70,.15);
+    max-height: 260px;
+    overflow-y: auto;
+    z-index: 20;
+    display: none;
+  }
+  .search-results.open { display: block; }
+  .search-results button {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 10px 12px;
+    background: none;
+    border: none;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    font-size: .92rem;
+  }
+  .search-results button:last-child { border-bottom: none; }
+  .search-results button:hover { background: #eef4fb; }
+  .search-results .meta { color: var(--muted); font-size: .82rem; }
+  .search-hint { color: var(--muted); font-size: .85rem; margin: 8px 0 0; }
+
+  .selected-person {
+    display: none;
+    margin-top: 10px;
+    padding: 10px 12px;
+    background: #eaf3ea;
+    border: 1px solid #bcd6bc;
+    border-radius: 8px;
+    font-size: .9rem;
+  }
+  .selected-person.show { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .selected-person strong { color: var(--ok); }
+
+  /* Forma */
+  form fieldset {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin: 0 0 16px;
+    padding: 12px 14px 14px;
+  }
+  form legend {
+    font-weight: 600;
+    font-size: .9rem;
+    color: var(--accent-dark);
+    padding: 0 6px;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 12px;
+  }
+  label { display: block; font-size: .82rem; font-weight: 600; color: var(--muted); margin-bottom: 4px; }
+  label .req { color: var(--danger); }
+  input[type="text"], input[type="number"] {
+    width: 100%;
+    padding: 9px 10px;
+    font-size: .95rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: #fff;
+  }
+  input:focus { outline: 2px solid #9dc1e8; border-color: var(--accent); }
+  input.invalid { border-color: var(--danger); background: #fdf0ef; }
+  .field-note { font-size: .78rem; color: var(--danger); margin-top: 3px; min-height: 1em; }
+
+  .form-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  button.btn {
+    padding: 10px 18px;
+    font-size: .95rem;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+  }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: var(--accent-dark); }
+  .btn-secondary { background: #e6ebf1; color: var(--text); }
+  .btn-secondary:hover { background: #d8dfe8; }
+  .btn-small { padding: 5px 10px; font-size: .8rem; border-radius: 6px; }
+  .btn-danger { background: #f6e2e0; color: var(--danger); }
+  .btn-danger:hover { background: #efcfcc; }
+
+  .edit-banner {
+    display: none;
+    background: var(--warn-bg);
+    border: 1px solid var(--warn-border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 14px;
+    font-size: .9rem;
+  }
+  .edit-banner.show { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+  .flash {
+    display: none;
+    background: #eaf3ea;
+    border: 1px solid #bcd6bc;
+    color: var(--ok);
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 14px;
+    font-size: .9rem;
+    font-weight: 600;
+  }
+  .flash.show { display: block; }
+
+  /* Tablica */
+  .table-tools { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
+  .table-tools input {
+    flex: 1;
+    min-width: 200px;
+    padding: 9px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: .92rem;
+  }
+  .table-wrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: .85rem; }
+  th, td { border: 1px solid var(--border); padding: 7px 8px; text-align: left; white-space: nowrap; }
+  th { background: #edf2f8; color: var(--accent-dark); position: sticky; top: 0; }
+  tbody tr:nth-child(even) { background: #f8fafc; }
+  tbody tr:hover { background: #eef4fb; }
+  td.actions { white-space: nowrap; }
+  .count { color: var(--muted); font-size: .85rem; }
+  .empty { text-align: center; color: var(--muted); padding: 24px !important; white-space: normal; }
+
+  @media print {
+    header, .no-print { display: none !important; }
+    .card { border: none; box-shadow: none; padding: 0; }
+    body { background: #fff; }
+    th, td { font-size: .75rem; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Evidencija prodanog streljiva</h1>
+  <p>Unos, pretraga i evidencija kupaca streljiva</p>
+</header>
+
+<main>
+
+  <!-- PRETRAGA -->
+  <section class="card no-print">
+    <h2>Pretraga postojećih kupaca</h2>
+    <div class="search-row">
+      <input type="text" id="searchInput" placeholder="Pretraži po imenu, prezimenu, OIB-u ili broju oružnog lista..." autocomplete="off">
+      <div class="search-results" id="searchResults"></div>
+    </div>
+    <p class="search-hint">Odaberite kupca iz rezultata — osobni podaci automatski se popunjavaju u obrazac, a vi upišete samo podatke o oružju i streljivu za novu prodaju.</p>
+    <div class="selected-person" id="selectedPerson">
+      <span id="selectedPersonText"></span>
+      <button type="button" class="btn btn-small btn-secondary" id="clearPersonBtn">Očisti odabir</button>
+    </div>
+  </section>
+
+  <!-- UNOS -->
+  <section class="card no-print">
+    <h2 id="formTitle">Novi unos</h2>
+
+    <div class="edit-banner" id="editBanner">
+      <span>✏️ Uređujete postojeći zapis — spremanjem će se izmijeniti postojeći unos u evidenciji.</span>
+      <button type="button" class="btn btn-small btn-secondary" id="cancelEditBtn">Odustani od uređivanja</button>
+    </div>
+
+    <div class="flash" id="flash"></div>
+
+    <form id="entryForm" autocomplete="off">
+      <fieldset>
+        <legend>Podaci o kupcu</legend>
+        <div class="grid">
+          <div>
+            <label for="ime">Ime <span class="req">*</span></label>
+            <input type="text" id="ime" required>
+          </div>
+          <div>
+            <label for="prezime">Prezime <span class="req">*</span></label>
+            <input type="text" id="prezime" required>
+          </div>
+          <div>
+            <label for="prebivaliste">Prebivalište <span class="req">*</span></label>
+            <input type="text" id="prebivaliste" required>
+          </div>
+          <div>
+            <label for="policija">Policijska postaja / Policijska uprava <span class="req">*</span></label>
+            <input type="text" id="policija" required>
+          </div>
+          <div>
+            <label for="oib">OIB <span class="req">*</span></label>
+            <input type="text" id="oib" required maxlength="11" inputmode="numeric">
+            <div class="field-note" id="oibNote"></div>
+          </div>
+          <div>
+            <label for="oruzniList">Broj oružnog lista <span class="req">*</span></label>
+            <input type="text" id="oruzniList" required>
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Podaci o oružju i streljivu</legend>
+        <div class="grid">
+          <div>
+            <label for="brojOruzja">Broj upisanog oružja <span class="req">*</span></label>
+            <input type="text" id="brojOruzja" required>
+          </div>
+          <div>
+            <label for="kalibar">Kalibar <span class="req">*</span></label>
+            <input type="text" id="kalibar" required placeholder="npr. 9x19, .22 LR, 12/70">
+          </div>
+          <div>
+            <label for="brojKomada">Broj komada <span class="req">*</span></label>
+            <input type="number" id="brojKomada" required min="1" step="1">
+          </div>
+          <div>
+            <label for="lot">LOT streljiva <span class="req">*</span></label>
+            <input type="text" id="lot" required>
+          </div>
+        </div>
+      </fieldset>
+
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary" id="saveBtn">💾 Spremi unos</button>
+        <button type="button" class="btn btn-secondary" id="resetBtn">Očisti obrazac</button>
+      </div>
+    </form>
+  </section>
+
+  <!-- EVIDENCIJA -->
+  <section class="card">
+    <h2>Evidencija svih unosa</h2>
+    <div class="table-tools no-print">
+      <input type="text" id="tableFilter" placeholder="Filtriraj evidenciju (ime, OIB, kalibar, LOT...)">
+      <button type="button" class="btn btn-secondary" id="exportBtn">⬇️ Izvoz CSV (Excel)</button>
+      <button type="button" class="btn btn-secondary" onclick="window.print()">🖨️ Ispis</button>
+    </div>
+    <p class="count" id="recordCount"></p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>R. br.</th>
+            <th>Datum i vrijeme</th>
+            <th>Ime</th>
+            <th>Prezime</th>
+            <th>Prebivalište</th>
+            <th>PP / PU</th>
+            <th>OIB</th>
+            <th>Br. oružnog lista</th>
+            <th>Br. upisanog oružja</th>
+            <th>Kalibar</th>
+            <th>Br. komada</th>
+            <th>LOT</th>
+            <th class="no-print">Radnje</th>
+          </tr>
+        </thead>
+        <tbody id="recordsBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+</main>
+
+<script>
+(function () {
+  "use strict";
+
+  var STORAGE_KEY = "evidencijaStreljiva.zapisi";
+
+  /* ---------- Pohrana ---------- */
+
+  function loadRecords() {
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function saveRecords(records) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+  }
+
+  var records = loadRecords();
+  var editingId = null;
+
+  /* ---------- Pomoćne funkcije ---------- */
+
+  function $(id) { return document.getElementById(id); }
+
+  function nowISO() { return new Date().toISOString(); }
+
+  function formatDate(iso) {
+    var d = new Date(iso);
+    if (isNaN(d)) return iso;
+    function p(n) { return (n < 10 ? "0" : "") + n; }
+    return p(d.getDate()) + "." + p(d.getMonth() + 1) + "." + d.getFullYear() +
+           ". " + p(d.getHours()) + ":" + p(d.getMinutes());
+  }
+
+  function newId() {
+    return "z" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  }
+
+  function normalize(s) {
+    return String(s || "").toLowerCase()
+      .replace(/č/g, "c").replace(/ć/g, "c").replace(/đ/g, "d")
+      .replace(/š/g, "s").replace(/ž/g, "z");
+  }
+
+  function escapeHtml(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+
+  /* Provjera OIB-a (ISO 7064, MOD 11-10) */
+  function validOIB(oib) {
+    if (!/^\d{11}$/.test(oib)) return false;
+    var a = 10;
+    for (var i = 0; i < 10; i++) {
+      a = (a + parseInt(oib.charAt(i), 10)) % 10;
+      if (a === 0) a = 10;
+      a = (a * 2) % 11;
+    }
+    var control = 11 - a;
+    if (control === 10) control = 0;
+    return control === parseInt(oib.charAt(10), 10);
+  }
+
+  /* ---------- Pretraga kupaca ---------- */
+
+  var searchInput = $("searchInput");
+  var searchResults = $("searchResults");
+
+  /* Jedinstveni kupci iz evidencije — po OIB-u (ili oružnom listu ako OIB nedostaje),
+     uzima se najnoviji zapis kako bi podaci bili ažurni. */
+  function uniquePersons() {
+    var map = {};
+    for (var i = records.length - 1; i >= 0; i--) {
+      var r = records[i];
+      var key = r.oib || ("ol:" + r.oruzniList);
+      if (!map[key]) map[key] = r;
+    }
+    var out = [];
+    for (var k in map) out.push(map[k]);
+    return out;
+  }
+
+  function renderSearch() {
+    var q = normalize(searchInput.value.trim());
+    if (q.length < 2) {
+      searchResults.className = "search-results";
+      searchResults.innerHTML = "";
+      return;
+    }
+    var hits = uniquePersons().filter(function (p) {
+      return normalize(p.ime).indexOf(q) !== -1 ||
+             normalize(p.prezime).indexOf(q) !== -1 ||
+             normalize(p.ime + " " + p.prezime).indexOf(q) !== -1 ||
+             normalize(p.oib).indexOf(q) !== -1 ||
+             normalize(p.oruzniList).indexOf(q) !== -1;
+    }).slice(0, 12);
+
+    if (!hits.length) {
+      searchResults.innerHTML = '<button type="button" disabled>Nema rezultata — kupac još nije zaveden.</button>';
+      searchResults.className = "search-results open";
+      return;
+    }
+    searchResults.innerHTML = hits.map(function (p) {
+      return '<button type="button" data-key="' + escapeHtml(p.id) + '">' +
+        '<strong>' + escapeHtml(p.ime) + ' ' + escapeHtml(p.prezime) + '</strong><br>' +
+        '<span class="meta">OIB: ' + escapeHtml(p.oib) +
+        ' · Oružni list: ' + escapeHtml(p.oruzniList) +
+        ' · ' + escapeHtml(p.prebivaliste) + '</span></button>';
+    }).join("");
+    searchResults.className = "search-results open";
+  }
+
+  searchInput.addEventListener("input", renderSearch);
+  searchInput.addEventListener("focus", renderSearch);
+
+  document.addEventListener("click", function (e) {
+    if (!e.target.closest(".search-row")) {
+      searchResults.className = "search-results";
+    }
+  });
+
+  searchResults.addEventListener("click", function (e) {
+    var btn = e.target.closest("button[data-key]");
+    if (!btn) return;
+    var rec = records.filter(function (r) { return r.id === btn.getAttribute("data-key"); })[0];
+    if (rec) selectPerson(rec);
+  });
+
+  function selectPerson(rec) {
+    $("ime").value = rec.ime;
+    $("prezime").value = rec.prezime;
+    $("prebivaliste").value = rec.prebivaliste;
+    $("policija").value = rec.policija;
+    $("oib").value = rec.oib;
+    $("oruzniList").value = rec.oruzniList;
+    checkOibField();
+
+    $("selectedPersonText").innerHTML =
+      '<strong>✔ Odabran kupac:</strong> ' + escapeHtml(rec.ime) + ' ' + escapeHtml(rec.prezime) +
+      ' (OIB: ' + escapeHtml(rec.oib) + ')' +
+      ' — upišite podatke o oružju i streljivu za novu prodaju.';
+    $("selectedPerson").className = "selected-person show";
+
+    searchResults.className = "search-results";
+    searchInput.value = "";
+    $("brojOruzja").focus();
+  }
+
+  $("clearPersonBtn").addEventListener("click", function () {
+    $("selectedPerson").className = "selected-person";
+    resetForm();
+  });
+
+  /* ---------- Provjera OIB-a uživo ---------- */
+
+  var oibInput = $("oib");
+  function checkOibField() {
+    var v = oibInput.value.trim();
+    var note = $("oibNote");
+    if (!v) { note.textContent = ""; oibInput.classList.remove("invalid"); return true; }
+    if (!/^\d{11}$/.test(v)) {
+      note.textContent = "OIB mora imati točno 11 znamenki.";
+      oibInput.classList.add("invalid");
+      return false;
+    }
+    if (!validOIB(v)) {
+      note.textContent = "Upozorenje: kontrolna znamenka OIB-a nije ispravna — provjerite unos.";
+      oibInput.classList.add("invalid");
+      return true; /* upozorenje, ne blokira spremanje */
+    }
+    note.textContent = "";
+    oibInput.classList.remove("invalid");
+    return true;
+  }
+  oibInput.addEventListener("input", checkOibField);
+
+  /* ---------- Obrazac ---------- */
+
+  var FIELDS = ["ime", "prezime", "prebivaliste", "policija", "oib", "oruzniList", "brojOruzja", "kalibar", "brojKomada", "lot"];
+
+  function readForm() {
+    var data = {};
+    FIELDS.forEach(function (f) { data[f] = $(f).value.trim(); });
+    return data;
+  }
+
+  function resetForm() {
+    $("entryForm").reset();
+    $("oibNote").textContent = "";
+    oibInput.classList.remove("invalid");
+    stopEditing();
+  }
+
+  function stopEditing() {
+    editingId = null;
+    $("editBanner").className = "edit-banner";
+    $("formTitle").textContent = "Novi unos";
+    $("saveBtn").textContent = "💾 Spremi unos";
+  }
+
+  function showFlash(msg) {
+    var f = $("flash");
+    f.textContent = msg;
+    f.className = "flash show";
+    clearTimeout(showFlash._t);
+    showFlash._t = setTimeout(function () { f.className = "flash"; }, 4000);
+  }
+
+  $("resetBtn").addEventListener("click", function () {
+    resetForm();
+    $("selectedPerson").className = "selected-person";
+  });
+
+  $("cancelEditBtn").addEventListener("click", function () {
+    resetForm();
+    $("selectedPerson").className = "selected-person";
+  });
+
+  $("entryForm").addEventListener("submit", function (e) {
+    e.preventDefault();
+
+    var v = oibInput.value.trim();
+    if (!/^\d{11}$/.test(v)) {
+      checkOibField();
+      oibInput.focus();
+      return;
+    }
+
+    var data = readForm();
+
+    if (editingId) {
+      var idx = -1;
+      for (var i = 0; i < records.length; i++) {
+        if (records[i].id === editingId) { idx = i; break; }
+      }
+      if (idx !== -1) {
+        for (var f in data) records[idx][f] = data[f];
+        records[idx].izmijenjeno = nowISO();
+        saveRecords(records);
+        showFlash("Zapis je izmijenjen i spremljen u evidenciju.");
+      }
+    } else {
+      data.id = newId();
+      data.datum = nowISO();
+      records.push(data);
+      saveRecords(records);
+      showFlash("Novi unos je spremljen u evidenciju.");
+    }
+
+    resetForm();
+    $("selectedPerson").className = "selected-person";
+    renderTable();
+  });
+
+  /* ---------- Tablica evidencije ---------- */
+
+  var tableFilter = $("tableFilter");
+  tableFilter.addEventListener("input", renderTable);
+
+  function renderTable() {
+    var q = normalize(tableFilter.value.trim());
+    var body = $("recordsBody");
+
+    var list = records.slice().reverse(); /* najnoviji na vrhu */
+    if (q) {
+      list = list.filter(function (r) {
+        return FIELDS.some(function (f) { return normalize(r[f]).indexOf(q) !== -1; });
+      });
+    }
+
+    $("recordCount").textContent = "Ukupno zapisa: " + records.length +
+      (q ? " · prikazano: " + list.length : "");
+
+    if (!list.length) {
+      body.innerHTML = '<tr><td class="empty" colspan="13">' +
+        (records.length ? "Nema zapisa koji odgovaraju filtru." :
+          "Evidencija je prazna — spremite prvi unos putem obrasca iznad.") +
+        '</td></tr>';
+      return;
+    }
+
+    body.innerHTML = list.map(function (r) {
+      var num = records.indexOf(r) + 1;
+      return "<tr>" +
+        "<td>" + num + "</td>" +
+        "<td>" + escapeHtml(formatDate(r.datum)) + (r.izmijenjeno ? " *" : "") + "</td>" +
+        "<td>" + escapeHtml(r.ime) + "</td>" +
+        "<td>" + escapeHtml(r.prezime) + "</td>" +
+        "<td>" + escapeHtml(r.prebivaliste) + "</td>" +
+        "<td>" + escapeHtml(r.policija) + "</td>" +
+        "<td>" + escapeHtml(r.oib) + "</td>" +
+        "<td>" + escapeHtml(r.oruzniList) + "</td>" +
+        "<td>" + escapeHtml(r.brojOruzja) + "</td>" +
+        "<td>" + escapeHtml(r.kalibar) + "</td>" +
+        "<td>" + escapeHtml(r.brojKomada) + "</td>" +
+        "<td>" + escapeHtml(r.lot) + "</td>" +
+        '<td class="actions no-print">' +
+          '<button type="button" class="btn btn-small btn-secondary" data-edit="' + r.id + '">Uredi</button> ' +
+          '<button type="button" class="btn btn-small btn-danger" data-del="' + r.id + '">Obriši</button>' +
+        "</td></tr>";
+    }).join("");
+  }
+
+  $("recordsBody").addEventListener("click", function (e) {
+    var editBtn = e.target.closest("button[data-edit]");
+    var delBtn = e.target.closest("button[data-del]");
+
+    if (editBtn) {
+      var rec = records.filter(function (r) { return r.id === editBtn.getAttribute("data-edit"); })[0];
+      if (!rec) return;
+      FIELDS.forEach(function (f) { $(f).value = rec[f] || ""; });
+      checkOibField();
+      editingId = rec.id;
+      $("editBanner").className = "edit-banner show";
+      $("formTitle").textContent = "Uređivanje zapisa";
+      $("saveBtn").textContent = "💾 Spremi izmjene";
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    if (delBtn) {
+      var rec2 = records.filter(function (r) { return r.id === delBtn.getAttribute("data-del"); })[0];
+      if (!rec2) return;
+      var ok = confirm("Obrisati zapis?\n\n" + rec2.ime + " " + rec2.prezime +
+        " — " + rec2.kalibar + ", " + rec2.brojKomada + " kom, LOT " + rec2.lot);
+      if (!ok) return;
+      records = records.filter(function (r) { return r.id !== rec2.id; });
+      saveRecords(records);
+      if (editingId === rec2.id) resetForm();
+      renderTable();
+      showFlash("Zapis je obrisan iz evidencije.");
+    }
+  });
+
+  /* ---------- Izvoz CSV ---------- */
+
+  $("exportBtn").addEventListener("click", function () {
+    if (!records.length) {
+      alert("Evidencija je prazna — nema podataka za izvoz.");
+      return;
+    }
+    var header = ["R. br.", "Datum i vrijeme", "Ime", "Prezime", "Prebivalište",
+      "Policijska postaja / Policijska uprava", "OIB", "Broj oružnog lista",
+      "Broj upisanog oružja", "Kalibar", "Broj komada", "LOT streljiva", "Zadnja izmjena"];
+
+    function cell(v) {
+      v = String(v == null ? "" : v);
+      if (/[";\n]/.test(v)) v = '"' + v.replace(/"/g, '""') + '"';
+      return v;
+    }
+
+    var rows = records.map(function (r, i) {
+      return [i + 1, formatDate(r.datum), r.ime, r.prezime, r.prebivaliste,
+        r.policija, "'" + r.oib, r.oruzniList, r.brojOruzja, r.kalibar,
+        r.brojKomada, r.lot, r.izmijenjeno ? formatDate(r.izmijenjeno) : ""
+      ].map(cell).join(";");
+    });
+
+    /* BOM zbog hrvatskih znakova u Excelu; ";" kao razdjelnik zbog HR postavki */
+    var csv = "\uFEFF" + header.map(cell).join(";") + "\n" + rows.join("\n");
+    var blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    var a = document.createElement("a");
+    var d = new Date();
+    function p(n) { return (n < 10 ? "0" : "") + n; }
+    a.href = URL.createObjectURL(blob);
+    a.download = "evidencija-streljiva-" + d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate()) + ".csv";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(a.href);
+  });
+
+  /* ---------- Init ---------- */
+  renderTable();
+})();
+</script>
+</body>
+</html>
