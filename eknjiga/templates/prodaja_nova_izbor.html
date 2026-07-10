@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Odabir ulaza — eKnjiga Oružja{% endblock %}
+{% block content %}
+<div class="card">
+  <h1>Više komada s tvorničkim brojem „{{ tb }}”</h1>
+  <p class="meta">Odaberite iz kojeg ulaza se komad prodaje:</p>
+  <div class="tablewrap">
+  <table class="knjiga">
+    <thead><tr><th>R. br.</th><th>Datum nabave</th><th>Marka i model</th><th>Kalibar</th><th></th></tr></thead>
+    <tbody>
+    {% for u in kandidati %}
+      <tr>
+        <td>{{ u['redni_broj'] }}</td>
+        <td>{{ u['datum_nabave'] }}</td>
+        <td>{{ u['marka_model'] }}</td>
+        <td>{{ u['kalibar'] }}</td>
+        <td><a class="btn" href="{{ url_for('prodaja_nova', ulaz_id=u['id']) }}">Prodaj ovaj</a></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+{% endblock %}

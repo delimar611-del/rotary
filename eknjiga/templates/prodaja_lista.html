@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Knjiga prodanog oružja — eKnjiga Oružja{% endblock %}
+{% block content %}
+<div class="pagehead">
+  <h1>Knjiga prodanog oružja</h1>
+  <div class="actions">
+    <a class="btn" href="{{ url_for('prodaja_nova') }}">+ Nova prodaja</a>
+  </div>
+</div>
+
+<p class="meta">Ukupno zapisa: <strong>{{ ukupno }}</strong></p>
+
+<form method="get" class="searchbar">
+  <input type="search" name="q" value="{{ request.args.get('q', '') }}"
+         placeholder="Tvornički broj, kupac, marka, vrsta, kalibar, broj odobrenja…">
+  <label>Od <input type="date" name="datum_od" value="{{ request.args.get('datum_od', '') }}"></label>
+  <label>Do <input type="date" name="datum_do" value="{{ request.args.get('datum_do', '') }}"></label>
+  <button type="submit">Traži</button>
+  <a href="{{ url_for('prodaja_lista') }}">Poništi</a>
+</form>
+
+<div class="tablewrap">
+<table class="knjiga">
+  <thead>
+    <tr>
+      <th>1.<br>R. br.</th>
+      <th>2.<br>Datum prodaje</th>
+      <th>3.<br>Kupac</th>
+      <th>4.<br>Vrsta i kategorija</th>
+      <th>5.<br>Marka i model</th>
+      <th>6.<br>Kalibar</th>
+      <th>7.<br>Tvornički broj</th>
+      <th>8.<br>Odobrenje</th>
+      <th>9.<br>Napomena</th>
+      <th>Status</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for z in zapisi %}
+    <tr class="{% if z['status'] == 'storno' %}storno{% endif %}">
+      <td><a href="{{ url_for('prodaja_detalj', prodaja_id=z['id']) }}">{{ z['redni_broj'] }}</a></td>
+      <td>{{ z['datum_prodaje'] }}</td>
+      <td>{{ z['kupac_naziv'] }}</td>
+      <td>{{ z['vrsta'] }}, kat. {{ z['kategorija'] }}</td>
+      <td>{{ z['marka_model'] }}</td>
+      <td>{{ z['kalibar'] }}</td>
+      <td>{{ z['tvornicki_broj'] }}</td>
+      <td>{{ odobrenje_vrste[z['odobrenje_vrsta']] }} br. {{ z['odobrenje_broj'] }}
+          od {{ z['odobrenje_datum'] }}, {{ z['odobrenje_izdavatelj'] }}</td>
+      <td>{{ z['napomena'] }}</td>
+      <td><span class="status status-{{ 'prodano' if z['status'] == 'aktivno' else 'storno' }}">{{ z['status'] }}</span></td>
+    </tr>
+  {% else %}
+    <tr><td colspan="10" class="empty">Nema zapisa.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% if zapisi|length == 200 %}<p class="meta">Prikazano prvih 200 rezultata — suzite pretragu.</p>{% endif %}
+{% endblock %}

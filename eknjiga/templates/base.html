@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}eKnjiga Oružja{% endblock %}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script src="{{ url_for('static', filename='autocomplete.js') }}" defer></script>
 </head>
 <body>
 <header class="topbar">
@@ -12,7 +13,9 @@
   {% if user %}
   <nav>
     <a href="{{ url_for('ulaz_lista') }}">Ulazna knjiga</a>
+    <a href="{{ url_for('prodaja_lista') }}">Prodajna knjiga</a>
     <a href="{{ url_for('dobavljaci') }}">Dobavljači</a>
+    <a href="{{ url_for('kupci') }}">Kupci</a>
     {% if user['rola'] == 'vlasnik' %}<a href="{{ url_for('postavke') }}">Postavke</a>{% endif %}
   </nav>
   <div class="userbox">

@@ -41,6 +41,7 @@
       <th>9.<br>Tvornički broj</th>
       <th>10.<br>Napomena</th>
       <th>Status</th>
+      <th></th>
     </tr>
   </thead>
   <tbody>
@@ -57,9 +58,12 @@
       <td>{{ z['tvornicki_broj'] }}</td>
       <td>{{ z['napomena'] }}</td>
       <td><span class="status status-{{ z['status'] }}">{{ z['status'].replace('_', ' ') }}</span></td>
+      <td>{% if z['status'] == 'na_stanju' %}
+        <a class="btn btn-mali" href="{{ url_for('prodaja_nova', ulaz_id=z['id']) }}">Prodaj</a>
+      {% endif %}</td>
     </tr>
   {% else %}
-    <tr><td colspan="11" class="empty">Nema zapisa.</td></tr>
+    <tr><td colspan="12" class="empty">Nema zapisa.</td></tr>
   {% endfor %}
   </tbody>
 </table>

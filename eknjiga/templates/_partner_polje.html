@@ -1,0 +1,23 @@
+{# Autocomplete polje za partnera (dobavljač/kupac) + inline unos novog.
+   Očekuje: f (form dict), prefix ('dobavljac'/'kupac'), legenda, api_url,
+   naziv_jd (npr. 'dobavljača'). #}
+<fieldset>
+  <legend>{{ legenda }}</legend>
+  <div class="autocomplete" data-api="{{ api_url }}">
+    <label>{{ 'Dobavljač' if prefix == 'dobavljac' else 'Kupac' }} iz šifrarnika
+      <input type="text" class="ac-input" placeholder="Počnite tipkati naziv ili OIB…"
+             autocomplete="off" value="{{ f.get(prefix ~ '_prikaz', '') }}">
+    </label>
+    <input type="hidden" class="ac-id" name="{{ prefix }}_id" value="{{ f.get(prefix ~ '_id', '') }}">
+    <input type="hidden" class="ac-prikaz" name="{{ prefix }}_prikaz" value="{{ f.get(prefix ~ '_prikaz', '') }}">
+    <ul class="autocomplete-lista" hidden></ul>
+  </div>
+  <details {% if f.get('novi_' ~ prefix ~ '_naziv') %}open{% endif %}>
+    <summary>… ili unesite novog {{ naziv_jd }}</summary>
+    <div class="grid3">
+      <label>Ime i prezime / naziv <input name="novi_{{ prefix }}_naziv" value="{{ f.get('novi_' ~ prefix ~ '_naziv', '') }}"></label>
+      <label>Adresa <input name="novi_{{ prefix }}_adresa" value="{{ f.get('novi_' ~ prefix ~ '_adresa', '') }}"></label>
+      <label>OIB (11 znamenki) <input name="novi_{{ prefix }}_oib" pattern="\d{11}" value="{{ f.get('novi_' ~ prefix ~ '_oib', '') }}"></label>
+    </div>
+  </details>
+</fieldset>

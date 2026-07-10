@@ -35,7 +35,12 @@
     <label>4. Naziv i broj isprave na temelju koje je oružje nabavljeno *
       <input name="isprava" value="{{ f.get('isprava', '') }}" required placeholder="npr. Račun br. 55/2026"></label>
 
-    {% if not uredi %}{% include "_dobavljac_polje.html" %}{% endif %}
+    {% if not uredi %}
+      {% with prefix='dobavljac', legenda='5. Od koga je oružje nabavljeno',
+              api_url=url_for('api_dobavljaci'), naziv_jd='dobavljača' %}
+        {% include "_partner_polje.html" %}
+      {% endwith %}
+    {% endif %}
 
     <fieldset>
       <legend>6. Vrsta i kategorija</legend>

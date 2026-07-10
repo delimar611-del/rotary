@@ -1,10 +1,10 @@
 {% extends "base.html" %}
-{% block title %}Šifrarnik dobavljača — eKnjiga Oružja{% endblock %}
+{% block title %}{{ naslov }} — eKnjiga Oružja{% endblock %}
 {% block content %}
-<div class="pagehead"><h1>Šifrarnik dobavljača</h1></div>
+<div class="pagehead"><h1>{{ naslov }}</h1></div>
 
 <div class="card">
-  <h2>Novi dobavljač</h2>
+  <h2>Novi {{ naziv_jd }}</h2>
   <form method="post" class="grid3-form">
     <div class="grid3">
       <label>Ime i prezime / naziv * <input name="naziv" required></label>
@@ -17,14 +17,14 @@
 
 <div class="tablewrap">
 <table class="knjiga">
-  <thead><tr><th>Naziv</th><th>Adresa</th><th>OIB</th><th>Broj ulaza</th><th>Status</th></tr></thead>
+  <thead><tr><th>Naziv</th><th>Adresa</th><th>OIB</th><th>Broj zapisa</th><th>Status</th></tr></thead>
   <tbody>
   {% for d in zapisi %}
     <tr>
       <td>{{ d['naziv'] }}</td>
       <td>{{ d['adresa'] }}</td>
       <td>{{ d['oib'] or '—' }}</td>
-      <td>{{ d['broj_ulaza'] }}</td>
+      <td>{{ d['broj_zapisa'] }}</td>
       <td>{{ 'aktivan' if d['aktivan'] else 'neaktivan' }}</td>
     </tr>
   {% else %}

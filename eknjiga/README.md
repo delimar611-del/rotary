@@ -104,10 +104,36 @@ python3 -m unittest test_schema -v
 - **Postavke** (vlasnik): podaci trgovine za ispis + početni redni brojevi.
 - Testovi: `python3 -m unittest test_app` (10 testova kroz HTTP sloj).
 
+## Korak 3 — prodajna knjiga s križnim povezivanjem
+
+- **Prodaja se kreira iz ulaza** (killer feature #1): gumb „Prodaj” na retku
+  ulazne knjige / detalju ulaza, ili unos tvorničkog broja na `/prodaja/nova`
+  koji pronalazi komad na stanju (više kandidata → stranica izbora).
+  Podaci o oružju se predispune iz ulaza (snapshot u prodajnoj knjizi,
+  kako obrazac 2 traži), a `ulaz_id` čuva živu vezu.
+- **Statusi**: prodaja atomarno (u istoj transakciji) prebacuje ulaz
+  na_stanju → prodano; ponovna prodaja istog komada je odbijena i kod
+  istovremenih zahtjeva (re-check unutar `BEGIN IMMEDIATE` + parcijalni
+  unique indeks iz koraka 1). Pregled „na stanju” = filtar statusa u
+  ulaznoj knjizi.
+- **Napomena (kolona 9) auto-generirana**: `ul. r.br. {R}` za digitalne
+  ulaze, odnosno `ul. knjiga {N}, str. {S}, r.br. {R}` kad ulaz nosi legacy
+  referencu papirnate knjige; dodatni tekst korisnika se nadovezuje.
+- **Kolona 8 strukturirana**: vrsta isprave (odobrenje za nabavu / oružni
+  list / odobrenje za promet) + broj + datum + izdavatelj (PU/PP); u
+  prikazu/ispisu se spaja u jedan string.
+- **Storno prodaje vraća komad na stanje** (uz obavezno obrazloženje;
+  oboje u audit logu) — komad se potom može ponovno prodati.
+- **Šifrarnik kupaca**: autocomplete + inline unos novog kupca u formi
+  prodaje (zajednička komponenta s dobavljačima), stranica `/kupci`.
+- Pretraga prodajne knjige: kupac, tvornički broj, marka, vrsta, kalibar,
+  broj odobrenja + raspon datuma.
+- Testovi: `python3 -m unittest test_prodaja` (12 testova).
+
 ## Plan (svaki korak se potvrđuje)
 
 1. ✅ Shema baze + šifrarnici + audit log
 2. ✅ Ulazna knjiga: pojedinačni + bulk unos, pretraga
-3. ⬜ Prodajna knjiga s križnim povezivanjem i statusima
+3. ✅ Prodajna knjiga s križnim povezivanjem i statusima
 4. ⬜ Streljivo
 5. ⬜ PDF ispisi identični obrascima + CSV import za migraciju

@@ -5,6 +5,9 @@
   <h1>Ulaz — redni broj {{ z['redni_broj'] }}
     <span class="status status-{{ z['status'] }}">{{ z['status'].replace('_', ' ') }}</span></h1>
   <div class="actions">
+    {% if z['status'] == 'na_stanju' %}
+    <a class="btn" href="{{ url_for('prodaja_nova', ulaz_id=z['id']) }}">Prodaj</a>
+    {% endif %}
     {% if user['rola'] == 'vlasnik' and z['status'] != 'storno' %}
     <a class="btn btn-secondary" href="{{ url_for('ulaz_uredi', ulaz_id=z['id']) }}">Uredi</a>
     {% endif %}
@@ -27,6 +30,11 @@
     {% if z['legacy_knjiga'] or z['legacy_stranica'] or z['legacy_redni_broj'] %}
     <dt>Papirnata knjiga</dt>
     <dd>knjiga {{ z['legacy_knjiga'] or '?' }}, str. {{ z['legacy_stranica'] or '?' }}, r.br. {{ z['legacy_redni_broj'] or '?' }}</dd>
+    {% endif %}
+    {% if prodaja %}
+    <dt>Vezana prodaja</dt>
+    <dd><a href="{{ url_for('prodaja_detalj', prodaja_id=prodaja['id']) }}">prodaja r.br. {{ prodaja['redni_broj'] }}</a>
+        — {{ prodaja['datum_prodaje'] }}, kupac {{ prodaja['kupac_naziv'] }}</dd>
     {% endif %}
     {% if z['status'] == 'storno' %}
     <dt>Storno</dt><dd>{{ z['storno_vrijeme'] }} — {{ z['storno_razlog'] }}</dd>

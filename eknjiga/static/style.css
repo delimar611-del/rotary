@@ -65,6 +65,7 @@ button, .btn {
 button:hover, .btn:hover { background: #24507c; }
 .btn-secondary { background: #5a6a7d; }
 .btn-secondary:hover { background: #47555f; }
+.btn-mali { padding: 4px 10px; font-size: 12px; }
 .btn-danger { background: var(--error); }
 .btn-danger:hover { background: #8f1d17; }
 .formfoot { display: flex; align-items: center; gap: 16px; margin-top: 18px; }

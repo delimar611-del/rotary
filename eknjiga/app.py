@@ -22,6 +22,13 @@ import db
 
 KATEGORIJE = ("A", "B", "C")
 
+# Vrste isprava za kolonu 8 prodajne knjige (u ispisu se spajaju u jedan string)
+ODOBRENJE_VRSTE = {
+    "odobrenje_za_nabavu": "odobrenje za nabavu",
+    "oruzni_list": "oružni list",
+    "odobrenje_za_promet": "odobrenje za promet",
+}
+
 
 def create_app(db_path: Path | str = db.DB_PATH) -> Flask:
     app = Flask(__name__)
@@ -109,38 +116,72 @@ def nadji_duplikate(conn, tvornicki_brojevi: list[str]) -> dict[str, list]:
     return duplikati
 
 
-def dohvati_ili_kreiraj_dobavljaca(conn, form) -> tuple[int | None, str | None]:
-    """Vrati (dobavljac_id, greška). Ako je unesen novi dobavljač, kreiraj ga."""
-    dobavljac_id = form.get("dobavljac_id", "").strip()
-    if dobavljac_id:
+_PARTNERI = {
+    "dobavljac": ("dobavljaci", "dobavljača"),
+    "kupac": ("kupci", "kupca"),
+}
+
+
+def dohvati_ili_kreiraj_partnera(conn, form, prefix: str) -> tuple[int | None, str | None]:
+    """Vrati (partner_id, greška) za dobavljača ili kupca.
+
+    Odabir iz šifrarnika (skriveno <prefix>_id polje) ili inline unos novog
+    (novi_<prefix>_* polja); isti OIB nikad ne stvara duplikat.
+    """
+    tablica, naziv_jd = _PARTNERI[prefix]
+    partner_id = form.get(f"{prefix}_id", "").strip()
+    if partner_id:
         row = conn.execute(
-            "SELECT id FROM dobavljaci WHERE id = ? AND aktivan = 1", (dobavljac_id,)
+            f"SELECT id FROM {tablica} WHERE id = ? AND aktivan = 1", (partner_id,)
         ).fetchone()
         if row is None:
-            return None, "Odabrani dobavljač ne postoji."
+            return None, f"Odabrani {naziv_jd[:-1]} ne postoji."
         return row["id"], None
 
-    naziv = form.get("novi_dobavljac_naziv", "").strip()
+    naziv = form.get(f"novi_{prefix}_naziv", "").strip()
     if not naziv:
-        return None, "Odaberite dobavljača iz šifrarnika ili unesite novog."
-    adresa = form.get("novi_dobavljac_adresa", "").strip()
-    oib = form.get("novi_dobavljac_oib", "").strip() or None
+        return None, f"Odaberite {naziv_jd} iz šifrarnika ili unesite novog."
+    adresa = form.get(f"novi_{prefix}_adresa", "").strip()
+    oib = form.get(f"novi_{prefix}_oib", "").strip() or None
     if oib and not re.fullmatch(r"\d{11}", oib):
-        return None, "OIB dobavljača mora imati točno 11 znamenki."
+        return None, f"OIB {naziv_jd} mora imati točno 11 znamenki."
     if oib:
         postojeci = conn.execute(
-            "SELECT id, naziv FROM dobavljaci WHERE oib = ?", (oib,)
+            f"SELECT id FROM {tablica} WHERE oib = ?", (oib,)
         ).fetchone()
         if postojeci:
-            return postojeci["id"], None  # isti OIB = isti dobavljač
+            return postojeci["id"], None  # isti OIB = isti partner
     cur = conn.execute(
-        "INSERT INTO dobavljaci (naziv, adresa, oib) VALUES (?, ?, ?)",
+        f"INSERT INTO {tablica} (naziv, adresa, oib) VALUES (?, ?, ?)",
         (naziv, adresa, oib),
     )
-    db.audit(conn, g.user["id"], g.user["korisnicko_ime"], "dobavljaci",
+    db.audit(conn, g.user["id"], g.user["korisnicko_ime"], tablica,
              cur.lastrowid, "unos", None,
              {"naziv": naziv, "adresa": adresa, "oib": oib})
     return cur.lastrowid, None
+
+
+def veza_na_ulaz(ulaz) -> str:
+    """Auto-generirana napomena prodaje s vezom na ulaz (killer feature #1).
+
+    Migrirani zapisi referenciraju papirnatu knjigu; digitalni redni broj
+    ulazne eKnjige.
+    """
+    if ulaz["legacy_knjiga"] or ulaz["legacy_stranica"] or ulaz["legacy_redni_broj"]:
+        return (f"ul. knjiga {ulaz['legacy_knjiga'] or '?'}, "
+                f"str. {ulaz['legacy_stranica'] or '?'}, "
+                f"r.br. {ulaz['legacy_redni_broj'] or '?'}")
+    return f"ul. r.br. {ulaz['redni_broj']}"
+
+
+def _prodaja_dict(row) -> dict:
+    """Snimka retka prodaje za audit log (samo podatkovna polja)."""
+    polja = ("redni_broj", "datum_prodaje", "kupac_id", "vrsta", "kategorija",
+             "marka_model", "kalibar", "tvornicki_broj", "odobrenje_vrsta",
+             "odobrenje_broj", "odobrenje_datum", "odobrenje_izdavatelj",
+             "napomena", "ulaz_id", "status",
+             "legacy_knjiga", "legacy_stranica", "legacy_redni_broj")
+    return {p: row[p] for p in polja}
 
 
 def _ulaz_dict(row) -> dict:
@@ -298,7 +339,7 @@ def register_routes(app: Flask) -> None:
 
             conn.execute("BEGIN IMMEDIATE")
             try:
-                dobavljac_id, err = dohvati_ili_kreiraj_dobavljaca(conn, f)
+                dobavljac_id, err = dohvati_ili_kreiraj_partnera(conn, f, "dobavljac")
                 if err:
                     conn.execute("ROLLBACK")
                     flash(err, "error")
@@ -376,7 +417,7 @@ def register_routes(app: Flask) -> None:
 
             conn.execute("BEGIN IMMEDIATE")
             try:
-                dobavljac_id, err = dohvati_ili_kreiraj_dobavljaca(conn, f)
+                dobavljac_id, err = dohvati_ili_kreiraj_partnera(conn, f, "dobavljac")
                 if err:
                     conn.execute("ROLLBACK")
                     flash(err, "error")
@@ -421,7 +462,13 @@ def register_routes(app: Flask) -> None:
             "SELECT * FROM audit_log WHERE tablica = 'ulaz' AND zapis_id = ? ORDER BY id",
             (ulaz_id,),
         ).fetchall()
-        return render_template("ulaz_detalj.html", z=zapis, audit_zapisi=audit_zapisi)
+        prodaja = conn.execute(
+            "SELECT p.id, p.redni_broj, p.datum_prodaje, k.naziv AS kupac_naziv "
+            "FROM prodaja p JOIN kupci k ON k.id = p.kupac_id "
+            "WHERE p.ulaz_id = ? AND p.status = 'aktivno'", (ulaz_id,),
+        ).fetchone()
+        return render_template("ulaz_detalj.html", z=zapis, audit_zapisi=audit_zapisi,
+                               prodaja=prodaja)
 
     @app.route("/ulaz/<int:ulaz_id>/uredi", methods=["GET", "POST"])
     @vlasnik_required
@@ -501,22 +548,317 @@ def register_routes(app: Flask) -> None:
             flash(f"Redni broj {zapis['redni_broj']} storniran.", "ok")
         return redirect(url_for("ulaz_detalj", ulaz_id=ulaz_id))
 
-    # ---------------- Šifrarnik dobavljača + autocomplete ----------------
+    # ---------------- Prodajna knjiga ----------------
 
-    @app.get("/api/dobavljaci")
+    @app.get("/prodaja")
     @login_required
-    def api_dobavljaci():
+    def prodaja_lista():
+        conn = get_conn()
+        q = request.args.get("q", "").strip()
+        datum_od = request.args.get("datum_od", "").strip()
+        datum_do = request.args.get("datum_do", "").strip()
+
+        uvjeti, params = [], []
+        if q:
+            uvjeti.append(
+                "(p.tvornicki_broj LIKE ? OR p.marka_model LIKE ? OR p.vrsta LIKE ? "
+                "OR p.kalibar LIKE ? OR k.naziv LIKE ? OR p.odobrenje_broj LIKE ?)"
+            )
+            params += [f"%{q}%"] * 6
+        if datum_od:
+            uvjeti.append("p.datum_prodaje >= ?"); params.append(datum_od)
+        if datum_do:
+            uvjeti.append("p.datum_prodaje <= ?"); params.append(datum_do)
+
+        sql = (
+            "SELECT p.*, k.naziv AS kupac_naziv, k.adresa AS kupac_adresa, "
+            "k.oib AS kupac_oib, u.redni_broj AS ulaz_redni_broj "
+            "FROM prodaja p JOIN kupci k ON k.id = p.kupac_id "
+            "LEFT JOIN ulaz u ON u.id = p.ulaz_id"
+        )
+        if uvjeti:
+            sql += " WHERE " + " AND ".join(uvjeti)
+        sql += " ORDER BY p.redni_broj DESC LIMIT 200"
+        zapisi = conn.execute(sql, params).fetchall()
+        ukupno = conn.execute("SELECT COUNT(*) AS n FROM prodaja").fetchone()["n"]
+        return render_template("prodaja_lista.html", zapisi=zapisi, ukupno=ukupno,
+                               odobrenje_vrste=ODOBRENJE_VRSTE)
+
+    @app.route("/prodaja/nova", methods=["GET", "POST"])
+    @login_required
+    def prodaja_nova():
+        conn = get_conn()
+
+        if request.method == "GET":
+            ulaz = None
+            tb = request.args.get("tb", "").strip()
+            ulaz_id = request.args.get("ulaz_id", "").strip()
+            if ulaz_id:
+                ulaz = conn.execute("SELECT * FROM ulaz WHERE id = ?", (ulaz_id,)).fetchone()
+                if ulaz is None:
+                    abort(404)
+            elif tb:
+                kandidati = conn.execute(
+                    "SELECT * FROM ulaz WHERE tvornicki_broj = ? AND status = 'na_stanju' "
+                    "ORDER BY redni_broj", (tb,),
+                ).fetchall()
+                if len(kandidati) == 1:
+                    ulaz = kandidati[0]
+                elif len(kandidati) > 1:
+                    flash(f"Više komada na stanju s tvorničkim brojem {tb} — odaberite ulaz.", "warn")
+                    return render_template("prodaja_nova_izbor.html", kandidati=kandidati, tb=tb)
+                else:
+                    flash(f"Nema komada na stanju s tvorničkim brojem „{tb}”.", "error")
+            if ulaz and ulaz["status"] != "na_stanju":
+                flash(f"Komad r.br. {ulaz['redni_broj']} nije na stanju "
+                      f"(status: {ulaz['status'].replace('_', ' ')}).", "error")
+                ulaz = None
+            f = {}
+            if ulaz:
+                f = {"vrsta": ulaz["vrsta"], "kategorija": ulaz["kategorija"],
+                     "marka_model": ulaz["marka_model"], "kalibar": ulaz["kalibar"],
+                     "tvornicki_broj": ulaz["tvornicki_broj"]}
+            return render_template("prodaja_forma.html", f=f, ulaz=ulaz,
+                                   kategorije=KATEGORIJE, odobrenje_vrste=ODOBRENJE_VRSTE)
+
+        # POST
+        f = request.form
+        greske = []
+        ulaz_id = f.get("ulaz_id", "").strip()
+        datum = f.get("datum_prodaje", "").strip()
+        vrsta = f.get("vrsta", "").strip()
+        kategorija = f.get("kategorija", "").strip()
+        marka_model = f.get("marka_model", "").strip()
+        kalibar = f.get("kalibar", "").strip()
+        tvornicki = f.get("tvornicki_broj", "").strip()
+        odobrenje_vrsta = f.get("odobrenje_vrsta", "").strip()
+        odobrenje_broj = f.get("odobrenje_broj", "").strip()
+        odobrenje_datum = f.get("odobrenje_datum", "").strip()
+        odobrenje_izdavatelj = f.get("odobrenje_izdavatelj", "").strip()
+        napomena_dodatno = f.get("napomena", "").strip()
+
+        ulaz = None
+        if not ulaz_id:
+            greske.append("Prodaja se kreira iz zapisa ulaza — otvorite je gumbom "
+                          "„Prodaj” ili pronađite komad po tvorničkom broju.")
+        else:
+            ulaz = conn.execute("SELECT * FROM ulaz WHERE id = ?", (ulaz_id,)).fetchone()
+            if ulaz is None:
+                greske.append("Vezani ulaz ne postoji.")
+
+        for polje, naziv in [(datum, "Datum prodaje"), (vrsta, "Vrsta"),
+                             (marka_model, "Marka i model"), (kalibar, "Kalibar"),
+                             (tvornicki, "Tvornički broj"),
+                             (odobrenje_broj, "Broj odobrenja"),
+                             (odobrenje_datum, "Datum odobrenja"),
+                             (odobrenje_izdavatelj, "Izdavatelj (PU/PP)")]:
+            if not polje:
+                greske.append(f"{naziv} je obavezno polje.")
+        if kategorija not in KATEGORIJE:
+            greske.append("Kategorija mora biti A, B ili C.")
+        if odobrenje_vrsta not in ODOBRENJE_VRSTE:
+            greske.append("Odaberite vrstu isprave za promet/nabavu.")
+
+        if greske:
+            for gr in greske:
+                flash(gr, "error")
+            return render_template("prodaja_forma.html", f=f, ulaz=ulaz,
+                                   kategorije=KATEGORIJE, odobrenje_vrste=ODOBRENJE_VRSTE)
+
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            ulaz = conn.execute("SELECT * FROM ulaz WHERE id = ?", (ulaz_id,)).fetchone()
+            if ulaz["status"] != "na_stanju":
+                conn.execute("ROLLBACK")
+                flash(f"Komad r.br. {ulaz['redni_broj']} više nije na stanju "
+                      f"(status: {ulaz['status'].replace('_', ' ')}).", "error")
+                return render_template("prodaja_forma.html", f=f, ulaz=ulaz,
+                                       kategorije=KATEGORIJE, odobrenje_vrste=ODOBRENJE_VRSTE)
+            kupac_id, err = dohvati_ili_kreiraj_partnera(conn, f, "kupac")
+            if err:
+                conn.execute("ROLLBACK")
+                flash(err, "error")
+                return render_template("prodaja_forma.html", f=f, ulaz=ulaz,
+                                       kategorije=KATEGORIJE, odobrenje_vrste=ODOBRENJE_VRSTE)
+
+            napomena = veza_na_ulaz(ulaz)
+            if napomena_dodatno:
+                napomena += "; " + napomena_dodatno
+            redni_broj = db.sljedeci_redni_broj(conn, "prodaja")
+            cur = conn.execute(
+                "INSERT INTO prodaja (redni_broj, datum_prodaje, kupac_id, vrsta, kategorija, "
+                "marka_model, kalibar, tvornicki_broj, odobrenje_vrsta, odobrenje_broj, "
+                "odobrenje_datum, odobrenje_izdavatelj, napomena, ulaz_id, kreirao_id) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (redni_broj, datum, kupac_id, vrsta, kategorija, marka_model, kalibar,
+                 tvornicki, odobrenje_vrsta, odobrenje_broj, odobrenje_datum,
+                 odobrenje_izdavatelj, napomena, ulaz["id"], g.user["id"]),
+            )
+            novi = conn.execute("SELECT * FROM prodaja WHERE id = ?", (cur.lastrowid,)).fetchone()
+            db.audit(conn, g.user["id"], g.user["korisnicko_ime"], "prodaja",
+                     cur.lastrowid, "unos", None, _prodaja_dict(novi))
+
+            staro_ulaz = _ulaz_dict(ulaz)
+            conn.execute(
+                "UPDATE ulaz SET status = 'prodano', izmijenio_id = ?, "
+                "izmijenjeno = datetime('now','localtime') WHERE id = ?",
+                (g.user["id"], ulaz["id"]),
+            )
+            novo_ulaz = dict(staro_ulaz); novo_ulaz["status"] = "prodano"
+            db.audit(conn, g.user["id"], g.user["korisnicko_ime"], "ulaz",
+                     ulaz["id"], "izmjena", staro_ulaz, novo_ulaz)
+            conn.execute("COMMIT")
+        except Exception:
+            conn.execute("ROLLBACK")
+            raise
+        flash(f"Prodaja upisana pod rednim brojem {redni_broj}; "
+              f"ulaz r.br. {ulaz['redni_broj']} označen kao prodan.", "ok")
+        return redirect(url_for("prodaja_lista"))
+
+    @app.get("/prodaja/<int:prodaja_id>")
+    @login_required
+    def prodaja_detalj(prodaja_id):
+        conn = get_conn()
+        zapis = conn.execute(
+            "SELECT p.*, k.naziv AS kupac_naziv, k.adresa AS kupac_adresa, "
+            "k.oib AS kupac_oib, u.redni_broj AS ulaz_redni_broj, u.id AS ulaz_pk "
+            "FROM prodaja p JOIN kupci k ON k.id = p.kupac_id "
+            "LEFT JOIN ulaz u ON u.id = p.ulaz_id WHERE p.id = ?", (prodaja_id,),
+        ).fetchone()
+        if zapis is None:
+            abort(404)
+        audit_zapisi = conn.execute(
+            "SELECT * FROM audit_log WHERE tablica = 'prodaja' AND zapis_id = ? ORDER BY id",
+            (prodaja_id,),
+        ).fetchall()
+        return render_template("prodaja_detalj.html", z=zapis, audit_zapisi=audit_zapisi,
+                               odobrenje_vrste=ODOBRENJE_VRSTE)
+
+    @app.route("/prodaja/<int:prodaja_id>/storno", methods=["POST"])
+    @vlasnik_required
+    def prodaja_storno(prodaja_id):
+        conn = get_conn()
+        zapis = conn.execute("SELECT * FROM prodaja WHERE id = ?", (prodaja_id,)).fetchone()
+        if zapis is None:
+            abort(404)
+        razlog = request.form.get("storno_razlog", "").strip()
+        if zapis["status"] == "storno":
+            flash("Prodaja je već stornirana.", "error")
+        elif not razlog:
+            flash("Obrazloženje storna je obavezno.", "error")
+        else:
+            conn.execute("BEGIN IMMEDIATE")
+            try:
+                staro = _prodaja_dict(zapis)
+                conn.execute(
+                    "UPDATE prodaja SET status='storno', storno_razlog=?, storno_korisnik_id=?, "
+                    "storno_vrijeme=datetime('now','localtime') WHERE id=?",
+                    (razlog, g.user["id"], prodaja_id),
+                )
+                novo = dict(staro); novo["status"] = "storno"; novo["storno_razlog"] = razlog
+                db.audit(conn, g.user["id"], g.user["korisnicko_ime"], "prodaja",
+                         prodaja_id, "storno", staro, novo)
+                # storno prodaje vraća komad na stanje
+                if zapis["ulaz_id"]:
+                    ulaz = conn.execute("SELECT * FROM ulaz WHERE id = ?",
+                                        (zapis["ulaz_id"],)).fetchone()
+                    if ulaz and ulaz["status"] == "prodano":
+                        staro_u = _ulaz_dict(ulaz)
+                        conn.execute(
+                            "UPDATE ulaz SET status='na_stanju', izmijenio_id=?, "
+                            "izmijenjeno=datetime('now','localtime') WHERE id=?",
+                            (g.user["id"], ulaz["id"]),
+                        )
+                        novo_u = dict(staro_u); novo_u["status"] = "na_stanju"
+                        db.audit(conn, g.user["id"], g.user["korisnicko_ime"], "ulaz",
+                                 ulaz["id"], "izmjena", staro_u, novo_u)
+                conn.execute("COMMIT")
+            except Exception:
+                conn.execute("ROLLBACK")
+                raise
+            flash(f"Prodaja r.br. {zapis['redni_broj']} stornirana"
+                  + ("; komad vraćen na stanje." if zapis["ulaz_id"] else "."), "ok")
+        return redirect(url_for("prodaja_detalj", prodaja_id=prodaja_id))
+
+    @app.route("/prodaja/<int:prodaja_id>/uredi", methods=["GET", "POST"])
+    @vlasnik_required
+    def prodaja_uredi(prodaja_id):
+        conn = get_conn()
+        zapis = conn.execute("SELECT * FROM prodaja WHERE id = ?", (prodaja_id,)).fetchone()
+        if zapis is None:
+            abort(404)
+        if zapis["status"] == "storno":
+            flash("Stornirani zapis se ne može uređivati.", "error")
+            return redirect(url_for("prodaja_detalj", prodaja_id=prodaja_id))
+        if request.method == "POST":
+            f = request.form
+            staro = _prodaja_dict(zapis)
+            novo = dict(staro)
+            novo.update({
+                "datum_prodaje": f.get("datum_prodaje", "").strip(),
+                "vrsta": f.get("vrsta", "").strip(),
+                "kategorija": f.get("kategorija", "").strip(),
+                "marka_model": f.get("marka_model", "").strip(),
+                "kalibar": f.get("kalibar", "").strip(),
+                "tvornicki_broj": f.get("tvornicki_broj", "").strip(),
+                "odobrenje_vrsta": f.get("odobrenje_vrsta", "").strip(),
+                "odobrenje_broj": f.get("odobrenje_broj", "").strip(),
+                "odobrenje_datum": f.get("odobrenje_datum", "").strip(),
+                "odobrenje_izdavatelj": f.get("odobrenje_izdavatelj", "").strip(),
+                "napomena": f.get("napomena", "").strip(),
+            })
+            obavezna = ["datum_prodaje", "vrsta", "marka_model", "kalibar",
+                        "tvornicki_broj", "odobrenje_broj", "odobrenje_datum",
+                        "odobrenje_izdavatelj"]
+            if (any(not novo[p] for p in obavezna)
+                    or novo["kategorija"] not in KATEGORIJE
+                    or novo["odobrenje_vrsta"] not in ODOBRENJE_VRSTE):
+                flash("Popunite sva obavezna polja.", "error")
+                return render_template("prodaja_forma.html", f=f, ulaz=None, uredi=zapis,
+                                       kategorije=KATEGORIJE, odobrenje_vrste=ODOBRENJE_VRSTE)
+            if novo == staro:
+                flash("Nema izmjena.", "ok")
+                return redirect(url_for("prodaja_detalj", prodaja_id=prodaja_id))
+            conn.execute(
+                "UPDATE prodaja SET datum_prodaje=?, vrsta=?, kategorija=?, marka_model=?, "
+                "kalibar=?, tvornicki_broj=?, odobrenje_vrsta=?, odobrenje_broj=?, "
+                "odobrenje_datum=?, odobrenje_izdavatelj=?, napomena=?, izmijenio_id=?, "
+                "izmijenjeno=datetime('now','localtime') WHERE id=?",
+                (novo["datum_prodaje"], novo["vrsta"], novo["kategorija"],
+                 novo["marka_model"], novo["kalibar"], novo["tvornicki_broj"],
+                 novo["odobrenje_vrsta"], novo["odobrenje_broj"], novo["odobrenje_datum"],
+                 novo["odobrenje_izdavatelj"], novo["napomena"], g.user["id"], prodaja_id),
+            )
+            db.audit(conn, g.user["id"], g.user["korisnicko_ime"], "prodaja",
+                     prodaja_id, "izmjena", staro, novo)
+            conn.commit()
+            flash("Zapis izmijenjen (staro stanje sačuvano u dnevniku izmjena).", "ok")
+            return redirect(url_for("prodaja_detalj", prodaja_id=prodaja_id))
+        return render_template("prodaja_forma.html", f=dict(zapis), ulaz=None, uredi=zapis,
+                               kategorije=KATEGORIJE, odobrenje_vrste=ODOBRENJE_VRSTE)
+
+    # ---------------- Šifrarnici (dobavljači/kupci) + autocomplete ----------------
+
+    def _api_partneri(tablica):
         q = request.args.get("q", "").strip()
         rows = get_conn().execute(
-            "SELECT id, naziv, adresa, oib FROM dobavljaci "
+            f"SELECT id, naziv, adresa, oib FROM {tablica} "
             "WHERE aktivan = 1 AND (naziv LIKE ? OR oib LIKE ?) ORDER BY naziv LIMIT 10",
             (f"%{q}%", f"{q}%"),
         ).fetchall()
         return jsonify([dict(r) for r in rows])
 
-    @app.route("/dobavljaci", methods=["GET", "POST"])
+    @app.get("/api/dobavljaci")
     @login_required
-    def dobavljaci():
+    def api_dobavljaci():
+        return _api_partneri("dobavljaci")
+
+    @app.get("/api/kupci")
+    @login_required
+    def api_kupci():
+        return _api_partneri("kupci")
+
+    def _sifrarnik(tablica, naslov, naziv_jd, endpoint, broj_sql):
         conn = get_conn()
         if request.method == "POST":
             naziv = request.form.get("naziv", "").strip()
@@ -526,24 +868,37 @@ def register_routes(app: Flask) -> None:
                 flash("Naziv je obavezan.", "error")
             elif oib and not re.fullmatch(r"\d{11}", oib):
                 flash("OIB mora imati točno 11 znamenki.", "error")
-            elif oib and conn.execute("SELECT 1 FROM dobavljaci WHERE oib = ?", (oib,)).fetchone():
-                flash("Dobavljač s tim OIB-om već postoji.", "error")
+            elif oib and conn.execute(f"SELECT 1 FROM {tablica} WHERE oib = ?", (oib,)).fetchone():
+                flash(f"{naziv_jd.capitalize()} s tim OIB-om već postoji.", "error")
             else:
                 cur = conn.execute(
-                    "INSERT INTO dobavljaci (naziv, adresa, oib) VALUES (?, ?, ?)",
+                    f"INSERT INTO {tablica} (naziv, adresa, oib) VALUES (?, ?, ?)",
                     (naziv, adresa, oib),
                 )
-                db.audit(conn, g.user["id"], g.user["korisnicko_ime"], "dobavljaci",
+                db.audit(conn, g.user["id"], g.user["korisnicko_ime"], tablica,
                          cur.lastrowid, "unos", None,
                          {"naziv": naziv, "adresa": adresa, "oib": oib})
                 conn.commit()
-                flash("Dobavljač dodan.", "ok")
-            return redirect(url_for("dobavljaci"))
+                flash(f"{naziv_jd.capitalize()} dodan.", "ok")
+            return redirect(url_for(endpoint))
         zapisi = conn.execute(
-            "SELECT d.*, (SELECT COUNT(*) FROM ulaz u WHERE u.dobavljac_id = d.id) AS broj_ulaza "
-            "FROM dobavljaci d ORDER BY d.naziv"
+            f"SELECT t.*, ({broj_sql}) AS broj_zapisa FROM {tablica} t ORDER BY t.naziv"
         ).fetchall()
-        return render_template("dobavljaci.html", zapisi=zapisi)
+        return render_template("partneri.html", zapisi=zapisi, naslov=naslov,
+                               naziv_jd=naziv_jd)
+
+    @app.route("/dobavljaci", methods=["GET", "POST"])
+    @login_required
+    def dobavljaci():
+        return _sifrarnik("dobavljaci", "Šifrarnik dobavljača", "dobavljač",
+                          "dobavljaci",
+                          "SELECT COUNT(*) FROM ulaz u WHERE u.dobavljac_id = t.id")
+
+    @app.route("/kupci", methods=["GET", "POST"])
+    @login_required
+    def kupci():
+        return _sifrarnik("kupci", "Šifrarnik kupaca", "kupac", "kupci",
+                          "SELECT COUNT(*) FROM prodaja p WHERE p.kupac_id = t.id")
 
     # ---------------- Postavke (vlasnik) ----------------
 

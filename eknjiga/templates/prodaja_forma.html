@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Izmjena prodaje' if uredi else 'Nova prodaja' }} — eKnjiga Oružja{% endblock %}
+{% block content %}
+<div class="card">
+  <h1>{{ ('Izmjena prodaje — redni broj ' ~ uredi['redni_broj']) if uredi else 'Nova prodaja' }}</h1>
+
+  {% if not uredi %}
+    {% if ulaz %}
+    <div class="flash flash-ok">
+      Prodaja iz ulaza <strong>r.br. {{ ulaz['redni_broj'] }}</strong> —
+      {{ ulaz['marka_model'] }}, {{ ulaz['kalibar'] }},
+      tvornički broj {{ ulaz['tvornicki_broj'] }}
+      (nabavljen {{ ulaz['datum_nabave'] }}). Podaci o oružju su predispunjeni.
+    </div>
+    {% else %}
+    <form method="get" class="searchbar">
+      <input type="search" name="tb" value="{{ request.args.get('tb', '') }}"
+             placeholder="Pronađi komad na stanju po tvorničkom broju…" required>
+      <button type="submit">Pronađi ulaz</button>
+    </form>
+    <p class="meta">Prodaja se kreira iz zapisa ulaza: gumbom „Prodaj” u ulaznoj knjizi
+       ili unosom tvorničkog broja gore.</p>
+    {% endif %}
+  {% endif %}
+
+  <form method="post" action="{{ url_for('prodaja_uredi', prodaja_id=uredi['id']) if uredi else url_for('prodaja_nova') }}">
+    {% if ulaz %}<input type="hidden" name="ulaz_id" value="{{ ulaz['id'] }}">{% endif %}
+
+    <label style="max-width: 260px">2. Datum prodaje *
+      <input type="date" name="datum_prodaje" value="{{ f.get('datum_prodaje', '') }}" required></label>
+
+    {% if not uredi %}
+      {% with prefix='kupac', legenda='3. Podaci o kupcu',
+              api_url=url_for('api_kupci'), naziv_jd='kupca' %}
+        {% include "_partner_polje.html" %}
+      {% endwith %}
+    {% endif %}
+
+    <fieldset>
+      <legend>4. Vrsta i kategorija</legend>
+      <div class="grid2">
+        <label>Vrsta * <input name="vrsta" value="{{ f.get('vrsta', '') }}" required></label>
+        <label>Kategorija *
+          <select name="kategorija" required>
+            <option value="">—</option>
+            {% for k in kategorije %}
+            <option value="{{ k }}" {% if f.get('kategorija') == k %}selected{% endif %}>{{ k }}</option>
+            {% endfor %}
+          </select></label>
+      </div>
+    </fieldset>
+
+    <div class="grid3">
+      <label>5. Marka i model * <input name="marka_model" value="{{ f.get('marka_model', '') }}" required></label>
+      <label>6. Kalibar * <input name="kalibar" value="{{ f.get('kalibar', '') }}" required></label>
+      <label>7. Tvornički broj * <input name="tvornicki_broj" value="{{ f.get('tvornicki_broj', '') }}" required></label>
+    </div>
+
+    <fieldset>
+      <legend>8. Broj i datum odobrenja za promet ili nabavu oružja</legend>
+      <div class="grid2">
+        <label>Vrsta isprave *
+          <select name="odobrenje_vrsta" required>
+            <option value="">—</option>
+            {% for kljuc, naziv in odobrenje_vrste.items() %}
+            <option value="{{ kljuc }}" {% if f.get('odobrenje_vrsta') == kljuc %}selected{% endif %}>{{ naziv }}</option>
+            {% endfor %}
+          </select></label>
+        <label>Broj isprave * <input name="odobrenje_broj" value="{{ f.get('odobrenje_broj', '') }}" required></label>
+        <label>Datum isprave * <input type="date" name="odobrenje_datum" value="{{ f.get('odobrenje_datum', '') }}" required></label>
+        <label>Izdavatelj (PU/PP) * <input name="odobrenje_izdavatelj" value="{{ f.get('odobrenje_izdavatelj', '') }}"
+               required placeholder="npr. PU zagrebačka"></label>
+      </div>
+    </fieldset>
+
+    {% if uredi %}
+    <label>9. Napomena <textarea name="napomena" rows="2">{{ f.get('napomena', '') }}</textarea></label>
+    {% else %}
+    <label>9. Napomena — dodatno <span class="hint">(veza na ulaz upisuje se automatski)</span>
+      <textarea name="napomena" rows="2">{{ f.get('napomena', '') }}</textarea></label>
+    {% endif %}
+
+    <div class="formfoot">
+      <button type="submit" {% if not ulaz and not uredi %}disabled title="Prvo odaberite ulaz"{% endif %}>
+        {{ 'Spremi izmjene' if uredi else 'Upiši prodaju' }}</button>
+      <a href="{{ url_for('prodaja_detalj', prodaja_id=uredi['id']) if uredi else url_for('prodaja_lista') }}">Odustani</a>
+      {% if not uredi %}<span class="hint">Redni broj dodjeljuje se automatski.</span>{% endif %}
+    </div>
+  </form>
+</div>
+{% endblock %}
