@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Prvo pokretanje — eKnjiga Oružja{% endblock %}
+{% block content %}
+<div class="card narrow">
+  <h1>Prvo pokretanje</h1>
+  <p>Kreirajte račun <strong>vlasnika</strong> (puna prava). Prodavače možete dodati kasnije.</p>
+  <form method="post">
+    <label>Ime i prezime <input name="ime_prezime" required></label>
+    <label>Korisničko ime <input name="korisnicko_ime" required autocomplete="username"></label>
+    <label>Lozinka (min. 8 znakova) <input type="password" name="lozinka" minlength="8" required autocomplete="new-password"></label>
+    <button type="submit">Kreiraj račun vlasnika</button>
+  </form>
+</div>
+{% endblock %}

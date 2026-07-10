@@ -16,7 +16,17 @@ evidencija hrvatskih trgovaca oružjem:
   (`db.backup()`, koristi SQLite online-backup API)
 - Hrvatski UI, UTF-8 svugdje
 
-## Korak 1 — shema baze (ovaj commit)
+## Pokretanje
+
+```bash
+cd eknjiga
+pip3 install -r requirements.txt   # samo Flask
+python3 app.py                     # → http://127.0.0.1:5000
+```
+
+Prvo pokretanje otvara stranicu za kreiranje računa **vlasnika**.
+
+## Korak 1 — shema baze
 
 ### Datoteke
 
@@ -72,10 +82,32 @@ cd eknjiga
 python3 -m unittest test_schema -v
 ```
 
+## Korak 2 — ulazna knjiga (web aplikacija)
+
+- **Flask aplikacija** (`app.py` + `templates/` + `static/`), hrvatski UI.
+  Prvo pokretanje: kreiranje računa vlasnika; prijava sesijom.
+- **Pojedinačni unos** (`/ulaz/novi`): sva polja obrasca 1.-10., redni broj
+  se dodjeljuje automatski unutar `BEGIN IMMEDIATE` transakcije.
+- **Duplikat tvorničkog broja**: upozorenje s popisom postojećih zapisa;
+  unos prolazi tek uz izričitu potvrdu + obaveznu napomenu s obrazloženjem.
+- **Bulk unos** (`/ulaz/bulk`): jedan set podataka + textarea s tvorničkim
+  brojevima (redak ili zarez) → N redaka s uzastopnim rednim brojevima,
+  sve u jednoj transakciji. Ponovljeni broj unutar liste se odbija.
+- **Šifrarnik dobavljača**: autocomplete (naziv/OIB) u formi unosa + inline
+  kreiranje novog dobavljača; isti OIB se ne duplicira nego veže postojećeg.
+- **Pretraga**: jedan upit preko tvorničkog broja, marke, vrste, kalibra,
+  dobavljača i isprave + raspon datuma + filtar statusa (indeksi iz koraka 1).
+- **Role**: prodavač unosi i pretražuje; izmjena starih zapisa, storno i
+  postavke samo vlasnik (HTTP 403). Svaka izmjena piše staro→novo u audit.
+- **Storno** iz detalja zapisa (obavezno obrazloženje); dnevnik izmjena
+  vidljiv na stranici svakog zapisa.
+- **Postavke** (vlasnik): podaci trgovine za ispis + početni redni brojevi.
+- Testovi: `python3 -m unittest test_app` (10 testova kroz HTTP sloj).
+
 ## Plan (svaki korak se potvrđuje)
 
 1. ✅ Shema baze + šifrarnici + audit log
-2. ⬜ Ulazna knjiga: pojedinačni + bulk unos, pretraga
+2. ✅ Ulazna knjiga: pojedinačni + bulk unos, pretraga
 3. ⬜ Prodajna knjiga s križnim povezivanjem i statusima
 4. ⬜ Streljivo
 5. ⬜ PDF ispisi identični obrascima + CSV import za migraciju

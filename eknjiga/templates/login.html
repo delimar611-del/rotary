@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Prijava — eKnjiga Oružja{% endblock %}
+{% block content %}
+<div class="card narrow">
+  <h1>Prijava</h1>
+  <form method="post">
+    <label>Korisničko ime <input name="korisnicko_ime" required autofocus autocomplete="username"></label>
+    <label>Lozinka <input type="password" name="lozinka" required autocomplete="current-password"></label>
+    <button type="submit">Prijavi se</button>
+  </form>
+</div>
+{% endblock %}

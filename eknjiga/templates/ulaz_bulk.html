@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Bulk unos — eKnjiga Oružja{% endblock %}
+{% block content %}
+<div class="card">
+  <h1>Bulk unos u knjigu nabavljenog oružja</h1>
+  <p class="meta">Jedan set podataka + lista tvorničkih brojeva → N redaka s uzastopnim rednim brojevima.</p>
+
+  {% if duplikati %}
+  <div class="flash flash-warn">
+    <strong>Upozorenje — sljedeći tvornički brojevi već postoje u knjizi:</strong>
+    <ul>
+    {% for tb, rows in duplikati.items() %}
+      {% for r in rows %}
+      <li>{{ tb }} — r.br. {{ r['redni_broj'] }}, {{ r['marka_model'] }},
+          nabavljen {{ r['datum_nabave'] }} ({{ r['status'].replace('_',' ') }})</li>
+      {% endfor %}
+    {% endfor %}
+    </ul>
+    <label class="checkline">
+      <input type="checkbox" name="potvrdi_duplikat" value="1" form="bulk-forma">
+      Potvrđujem unos duplikata (napomena s obrazloženjem je obavezna)
+    </label>
+  </div>
+  {% endif %}
+
+  <form method="post" id="bulk-forma">
+    <div class="grid2">
+      <label>2. Datum nabave *
+        <input type="date" name="datum_nabave" value="{{ f.get('datum_nabave', '') }}" required></label>
+      <label>3. Broj oružnog lista <span class="hint">(prazno za novo oružje)</span>
+        <input name="broj_oruznog_lista" value="{{ f.get('broj_oruznog_lista') or '' }}"></label>
+    </div>
+    <label>4. Naziv i broj isprave *
+      <input name="isprava" value="{{ f.get('isprava', '') }}" required placeholder="npr. Račun br. 55/2026"></label>
+
+    {% include "_dobavljac_polje.html" %}
+
+    <fieldset>
+      <legend>6. Vrsta i kategorija</legend>
+      <div class="grid2">
+        <label>Vrsta * <input name="vrsta" value="{{ f.get('vrsta', '') }}" required></label>
+        <label>Kategorija *
+          <select name="kategorija" required>
+            <option value="">—</option>
+            {% for k in kategorije %}
+            <option value="{{ k }}" {% if f.get('kategorija') == k %}selected{% endif %}>{{ k }}</option>
+            {% endfor %}
+          </select></label>
+      </div>
+    </fieldset>
+
+    <div class="grid2">
+      <label>7. Marka i model * <input name="marka_model" value="{{ f.get('marka_model', '') }}" required></label>
+      <label>8. Kalibar * <input name="kalibar" value="{{ f.get('kalibar', '') }}" required></label>
+    </div>
+
+    <label>9. Tvornički brojevi * <span class="hint">(jedan po retku ili odvojeni zarezima)</span>
+      <textarea name="tvornicki_brojevi" rows="8" required
+                placeholder="AB1234&#10;AB1235&#10;AB1236">{{ f.get('tvornicki_brojevi', '') }}</textarea></label>
+
+    <label>10. Napomena (zajednička za sve retke)
+      <textarea name="napomena" rows="2">{{ f.get('napomena', '') }}</textarea></label>
+
+    <div class="formfoot">
+      <button type="submit">Upiši sve u knjigu</button>
+      <a href="{{ url_for('ulaz_lista') }}">Odustani</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Izmjena zapisa' if uredi else 'Novi unos' }} — eKnjiga Oružja{% endblock %}
+{% block content %}
+<div class="card">
+  <h1>{{ ('Izmjena zapisa — redni broj ' ~ uredi['redni_broj']) if uredi else 'Novi unos u knjigu nabavljenog oružja' }}</h1>
+  {% if uredi %}
+  <p class="meta">Izmjena je dopuštena samo vlasniku; staro stanje ostaje trajno zapisano u dnevniku izmjena.</p>
+  {% endif %}
+
+  {% if duplikati %}
+  <div class="flash flash-warn">
+    <strong>Upozorenje — tvornički broj već postoji u knjizi:</strong>
+    <ul>
+    {% for tb, rows in duplikati.items() %}
+      {% for r in rows %}
+      <li>{{ tb }} — r.br. {{ r['redni_broj'] }}, {{ r['marka_model'] }},
+          nabavljen {{ r['datum_nabave'] }} ({{ r['status'].replace('_',' ') }})</li>
+      {% endfor %}
+    {% endfor %}
+    </ul>
+    <label class="checkline">
+      <input type="checkbox" name="potvrdi_duplikat" value="1" form="ulaz-forma">
+      Potvrđujem unos duplikata (napomena s obrazloženjem je obavezna)
+    </label>
+  </div>
+  {% endif %}
+
+  <form method="post" id="ulaz-forma">
+    <div class="grid2">
+      <label>2. Datum nabave *
+        <input type="date" name="datum_nabave" value="{{ f.get('datum_nabave', '') }}" required></label>
+      <label>3. Broj oružnog lista <span class="hint">(prazno za novo oružje od proizvođača)</span>
+        <input name="broj_oruznog_lista" value="{{ f.get('broj_oruznog_lista') or '' }}"></label>
+    </div>
+    <label>4. Naziv i broj isprave na temelju koje je oružje nabavljeno *
+      <input name="isprava" value="{{ f.get('isprava', '') }}" required placeholder="npr. Račun br. 55/2026"></label>
+
+    {% if not uredi %}{% include "_dobavljac_polje.html" %}{% endif %}
+
+    <fieldset>
+      <legend>6. Vrsta i kategorija</legend>
+      <div class="grid2">
+        <label>Vrsta * <input name="vrsta" value="{{ f.get('vrsta', '') }}" required placeholder="npr. lovački karabin"></label>
+        <label>Kategorija *
+          <select name="kategorija" required>
+            <option value="">—</option>
+            {% for k in kategorije %}
+            <option value="{{ k }}" {% if f.get('kategorija') == k %}selected{% endif %}>{{ k }}</option>
+            {% endfor %}
+          </select></label>
+      </div>
+    </fieldset>
+
+    <div class="grid3">
+      <label>7. Marka i model * <input name="marka_model" value="{{ f.get('marka_model', '') }}" required></label>
+      <label>8. Kalibar * <input name="kalibar" value="{{ f.get('kalibar', '') }}" required></label>
+      <label>9. Tvornički broj * <input name="tvornicki_broj" value="{{ f.get('tvornicki_broj', '') }}" required></label>
+    </div>
+
+    <label>10. Napomena <textarea name="napomena" rows="2">{{ f.get('napomena', '') }}</textarea></label>
+
+    <div class="formfoot">
+      <button type="submit">{{ 'Spremi izmjene' if uredi else 'Upiši u knjigu' }}</button>
+      <a href="{{ url_for('ulaz_detalj', ulaz_id=uredi['id']) if uredi else url_for('ulaz_lista') }}">Odustani</a>
+      {% if not uredi %}<span class="hint">Redni broj dodjeljuje se automatski.</span>{% endif %}
+    </div>
+  </form>
+</div>
+{% endblock %}

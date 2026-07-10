@@ -25,8 +25,12 @@ _START_KEYS = {
 
 
 def get_conn(db_path: Path | str = DB_PATH) -> sqlite3.Connection:
-    """Otvori vezu s uključenim foreign keys i row factory-jem."""
-    conn = sqlite3.connect(db_path)
+    """Otvori vezu s uključenim foreign keys i row factory-jem.
+
+    isolation_level=None → autocommit; višekorakovne operacije otvaraju
+    eksplicitnu transakciju s BEGIN IMMEDIATE (vidi app.py).
+    """
+    conn = sqlite3.connect(db_path, isolation_level=None)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     return conn

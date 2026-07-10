@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Redni broj {{ z['redni_broj'] }} — eKnjiga Oružja{% endblock %}
+{% block content %}
+<div class="pagehead">
+  <h1>Ulaz — redni broj {{ z['redni_broj'] }}
+    <span class="status status-{{ z['status'] }}">{{ z['status'].replace('_', ' ') }}</span></h1>
+  <div class="actions">
+    {% if user['rola'] == 'vlasnik' and z['status'] != 'storno' %}
+    <a class="btn btn-secondary" href="{{ url_for('ulaz_uredi', ulaz_id=z['id']) }}">Uredi</a>
+    {% endif %}
+    <a class="btn btn-secondary" href="{{ url_for('ulaz_lista') }}">Natrag na knjigu</a>
+  </div>
+</div>
+
+<div class="card">
+  <dl class="detalj">
+    <dt>2. Datum nabave</dt><dd>{{ z['datum_nabave'] }}</dd>
+    <dt>3. Broj oružnog lista</dt><dd>{{ z['broj_oruznog_lista'] or '—' }}</dd>
+    <dt>4. Isprava</dt><dd>{{ z['isprava'] }}</dd>
+    <dt>5. Dobavljač</dt>
+    <dd>{{ z['dobavljac_naziv'] }}{% if z['dobavljac_adresa'] %}, {{ z['dobavljac_adresa'] }}{% endif %}{% if z['dobavljac_oib'] %}, OIB: {{ z['dobavljac_oib'] }}{% endif %}</dd>
+    <dt>6. Vrsta i kategorija</dt><dd>{{ z['vrsta'] }}, kategorija {{ z['kategorija'] }}</dd>
+    <dt>7. Marka i model</dt><dd>{{ z['marka_model'] }}</dd>
+    <dt>8. Kalibar</dt><dd>{{ z['kalibar'] }}</dd>
+    <dt>9. Tvornički broj</dt><dd>{{ z['tvornicki_broj'] }}</dd>
+    <dt>10. Napomena</dt><dd>{{ z['napomena'] or '—' }}</dd>
+    {% if z['legacy_knjiga'] or z['legacy_stranica'] or z['legacy_redni_broj'] %}
+    <dt>Papirnata knjiga</dt>
+    <dd>knjiga {{ z['legacy_knjiga'] or '?' }}, str. {{ z['legacy_stranica'] or '?' }}, r.br. {{ z['legacy_redni_broj'] or '?' }}</dd>
+    {% endif %}
+    {% if z['status'] == 'storno' %}
+    <dt>Storno</dt><dd>{{ z['storno_vrijeme'] }} — {{ z['storno_razlog'] }}</dd>
+    {% endif %}
+  </dl>
+</div>
+
+{% if user['rola'] == 'vlasnik' and z['status'] == 'na_stanju' %}
+<div class="card">
+  <h2>Storno zapisa</h2>
+  <p class="meta">Brisanja nema — zapis ostaje u knjizi označen kao storniran, uz obavezno obrazloženje.</p>
+  <form method="post" action="{{ url_for('ulaz_storno', ulaz_id=z['id']) }}"
+        onsubmit="return confirm('Stornirati redni broj {{ z['redni_broj'] }}?');">
+    <label>Obrazloženje storna * <input name="storno_razlog" required></label>
+    <button type="submit" class="btn-danger">Storniraj</button>
+  </form>
+</div>
+{% endif %}
+
+<div class="card">
+  <h2>Dnevnik izmjena</h2>
+  <table class="audit">
+    <thead><tr><th>Vrijeme</th><th>Korisnik</th><th>Akcija</th><th>Staro → novo</th></tr></thead>
+    <tbody>
+    {% for a in audit_zapisi %}
+      <tr>
+        <td>{{ a['vrijeme'] }}</td>
+        <td>{{ a['korisnik_ime'] }}</td>
+        <td>{{ a['akcija'] }}</td>
+        <td class="jsoncell">{% if a['staro_json'] %}{{ a['staro_json'] }}<br>→ {% endif %}{{ a['novo_json'] }}</td>
+      </tr>
+    {% else %}
+      <tr><td colspan="4" class="empty">Nema zapisa.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

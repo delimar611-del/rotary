@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Šifrarnik dobavljača — eKnjiga Oružja{% endblock %}
+{% block content %}
+<div class="pagehead"><h1>Šifrarnik dobavljača</h1></div>
+
+<div class="card">
+  <h2>Novi dobavljač</h2>
+  <form method="post" class="grid3-form">
+    <div class="grid3">
+      <label>Ime i prezime / naziv * <input name="naziv" required></label>
+      <label>Adresa <input name="adresa"></label>
+      <label>OIB (11 znamenki) <input name="oib" pattern="\d{11}"></label>
+    </div>
+    <button type="submit">Dodaj</button>
+  </form>
+</div>
+
+<div class="tablewrap">
+<table class="knjiga">
+  <thead><tr><th>Naziv</th><th>Adresa</th><th>OIB</th><th>Broj ulaza</th><th>Status</th></tr></thead>
+  <tbody>
+  {% for d in zapisi %}
+    <tr>
+      <td>{{ d['naziv'] }}</td>
+      <td>{{ d['adresa'] }}</td>
+      <td>{{ d['oib'] or '—' }}</td>
+      <td>{{ d['broj_ulaza'] }}</td>
+      <td>{{ 'aktivan' if d['aktivan'] else 'neaktivan' }}</td>
+    </tr>
+  {% else %}
+    <tr><td colspan="5" class="empty">Šifrarnik je prazan.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

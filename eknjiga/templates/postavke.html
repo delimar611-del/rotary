@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Postavke — eKnjiga Oružja{% endblock %}
+{% block content %}
+<div class="card">
+  <h1>Postavke</h1>
+  <form method="post">
+    <h2>Podaci trgovine (zaglavlje ispisa)</h2>
+    <div class="grid3">
+      <label>Naziv <input name="trgovina.naziv" value="{{ p.get('trgovina.naziv', '') }}"></label>
+      <label>Adresa <input name="trgovina.adresa" value="{{ p.get('trgovina.adresa', '') }}"></label>
+      <label>OIB <input name="trgovina.oib" value="{{ p.get('trgovina.oib', '') }}"></label>
+    </div>
+
+    <h2>Početni redni brojevi</h2>
+    <p class="meta">Nastavak papirnatih knjiga: npr. papirnata knjiga stala na 730 → upišite 731.
+       Vrijedi samo dok knjiga ne dosegne taj broj.</p>
+    <div class="grid3">
+      <label>Ulazna knjiga <input name="redni_broj.start.ulaz" inputmode="numeric"
+             value="{{ p.get('redni_broj.start.ulaz', '') }}"></label>
+      <label>Prodajna knjiga <input name="redni_broj.start.prodaja" inputmode="numeric"
+             value="{{ p.get('redni_broj.start.prodaja', '') }}"></label>
+      <label>Evidencija streljiva <input name="redni_broj.start.streljivo" inputmode="numeric"
+             value="{{ p.get('redni_broj.start.streljivo', '') }}"></label>
+    </div>
+
+    <div class="formfoot"><button type="submit">Spremi</button></div>
+  </form>
+</div>
+{% endblock %}

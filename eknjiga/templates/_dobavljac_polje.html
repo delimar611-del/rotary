@@ -1,0 +1,22 @@
+{# Autocomplete polje za dobavljača + inline unos novog. Očekuje `f` (form dict). #}
+<fieldset class="dobavljac-fieldset">
+  <legend>5. Od koga je oružje nabavljeno</legend>
+  <div class="autocomplete" id="dobavljac-autocomplete">
+    <label>Dobavljač iz šifrarnika
+      <input type="text" id="dobavljac-trazi" placeholder="Počnite tipkati naziv ili OIB…"
+             autocomplete="off" value="{{ f.get('dobavljac_prikaz', '') }}">
+    </label>
+    <input type="hidden" name="dobavljac_id" id="dobavljac-id" value="{{ f.get('dobavljac_id', '') }}">
+    <input type="hidden" name="dobavljac_prikaz" id="dobavljac-prikaz" value="{{ f.get('dobavljac_prikaz', '') }}">
+    <ul class="autocomplete-lista" id="dobavljac-lista" hidden></ul>
+  </div>
+  <details {% if f.get('novi_dobavljac_naziv') %}open{% endif %}>
+    <summary>… ili unesite novog dobavljača</summary>
+    <div class="grid3">
+      <label>Ime i prezime / naziv <input name="novi_dobavljac_naziv" value="{{ f.get('novi_dobavljac_naziv', '') }}"></label>
+      <label>Adresa <input name="novi_dobavljac_adresa" value="{{ f.get('novi_dobavljac_adresa', '') }}"></label>
+      <label>OIB (11 znamenki) <input name="novi_dobavljac_oib" pattern="\d{11}" value="{{ f.get('novi_dobavljac_oib', '') }}"></label>
+    </div>
+  </details>
+</fieldset>
+<script src="{{ url_for('static', filename='autocomplete.js') }}" defer></script>

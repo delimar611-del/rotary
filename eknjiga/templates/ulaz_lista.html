@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Knjiga nabavljenog oružja — eKnjiga Oružja{% endblock %}
+{% block content %}
+<div class="pagehead">
+  <h1>Knjiga nabavljenog oružja</h1>
+  <div class="actions">
+    <a class="btn" href="{{ url_for('ulaz_novi') }}">+ Novi unos</a>
+    <a class="btn btn-secondary" href="{{ url_for('ulaz_bulk') }}">+ Bulk unos</a>
+  </div>
+</div>
+
+<p class="meta">Ukupno zapisa: <strong>{{ ukupno }}</strong> · Na stanju: <strong>{{ na_stanju }}</strong></p>
+
+<form method="get" class="searchbar">
+  <input type="search" name="q" value="{{ request.args.get('q', '') }}"
+         placeholder="Tvornički broj, marka, vrsta, kalibar, dobavljač, isprava…">
+  <label>Od <input type="date" name="datum_od" value="{{ request.args.get('datum_od', '') }}"></label>
+  <label>Do <input type="date" name="datum_do" value="{{ request.args.get('datum_do', '') }}"></label>
+  <select name="status">
+    <option value="">— svi statusi —</option>
+    <option value="na_stanju" {% if request.args.get('status') == 'na_stanju' %}selected{% endif %}>na stanju</option>
+    <option value="prodano" {% if request.args.get('status') == 'prodano' %}selected{% endif %}>prodano</option>
+    <option value="storno" {% if request.args.get('status') == 'storno' %}selected{% endif %}>storno</option>
+  </select>
+  <button type="submit">Traži</button>
+  <a href="{{ url_for('ulaz_lista') }}">Poništi</a>
+</form>
+
+<div class="tablewrap">
+<table class="knjiga">
+  <thead>
+    <tr>
+      <th>1.<br>R. br.</th>
+      <th>2.<br>Datum nabave</th>
+      <th>3.<br>Br. oružnog lista</th>
+      <th>4.<br>Isprava</th>
+      <th>5.<br>Dobavljač</th>
+      <th>6.<br>Vrsta i kategorija</th>
+      <th>7.<br>Marka i model</th>
+      <th>8.<br>Kalibar</th>
+      <th>9.<br>Tvornički broj</th>
+      <th>10.<br>Napomena</th>
+      <th>Status</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for z in zapisi %}
+    <tr class="{% if z['status'] == 'storno' %}storno{% endif %}">
+      <td><a href="{{ url_for('ulaz_detalj', ulaz_id=z['id']) }}">{{ z['redni_broj'] }}</a></td>
+      <td>{{ z['datum_nabave'] }}</td>
+      <td>{{ z['broj_oruznog_lista'] or '—' }}</td>
+      <td>{{ z['isprava'] }}</td>
+      <td>{{ z['dobavljac_naziv'] }}</td>
+      <td>{{ z['vrsta'] }}, kat. {{ z['kategorija'] }}</td>
+      <td>{{ z['marka_model'] }}</td>
+      <td>{{ z['kalibar'] }}</td>
+      <td>{{ z['tvornicki_broj'] }}</td>
+      <td>{{ z['napomena'] }}</td>
+      <td><span class="status status-{{ z['status'] }}">{{ z['status'].replace('_', ' ') }}</span></td>
+    </tr>
+  {% else %}
+    <tr><td colspan="11" class="empty">Nema zapisa.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% if zapisi|length == 200 %}<p class="meta">Prikazano prvih 200 rezultata — suzite pretragu.</p>{% endif %}
+{% endblock %}
