@@ -130,10 +130,28 @@ python3 -m unittest test_schema -v
   broj odobrenja + raspon datuma.
 - Testovi: `python3 -m unittest test_prodaja` (12 testova).
 
+## Korak 4 — evidencija streljiva
+
+- **Prodaja civilu na oružni list**: obavezno ime i prezime/naziv, adresa i
+  OIB kupca (provjera prije upisa — nepotpun kupac iz šifrarnika se odbija
+  s jasnom porukom), broj oružnog lista, policijska uprava/postaja koja ga
+  je izdala i **tvornički broj oružja upisanog u oružni list** (novo polje
+  `oruzje_broj`; automatska migracija starih baza ALTER-om). Kod prodaje
+  trgovcu na odobrenje za promet broj oružja se ne traži (polje se skriva).
+- Kolone obrasca 1.-10.: vrsta, marka (proizvođač), kalibar, broj lota /
+  pakiranja, količina; kolona 9 se u prikazu spaja u jedan string
+  („oružni list br. X od D, PP Y; oružje tvor. br. Z”).
+- **Bulk po lotovima** (killer feature #2): jedan kupac + isprava, textarea
+  redaka „broj lota; količina” → N zapisa s uzastopnim rednim brojevima u
+  jednoj transakciji; neispravan redak odbija cijeli unos.
+- Pretraga: kupac, marka, vrsta, kalibar, lot, broj isprave, broj oružja +
+  raspon datuma. Storno uz obrazloženje, audit, role — kao ostale knjige.
+- Testovi: `python3 -m unittest test_streljivo` (10 testova).
+
 ## Plan (svaki korak se potvrđuje)
 
 1. ✅ Shema baze + šifrarnici + audit log
 2. ✅ Ulazna knjiga: pojedinačni + bulk unos, pretraga
 3. ✅ Prodajna knjiga s križnim povezivanjem i statusima
-4. ⬜ Streljivo
+4. ✅ Streljivo
 5. ⬜ PDF ispisi identični obrascima + CSV import za migraciju

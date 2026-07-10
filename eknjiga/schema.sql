@@ -199,7 +199,9 @@ CREATE TABLE IF NOT EXISTS streljivo (
                              ('odobrenje_za_promet', 'oruzni_list')),
     odobrenje_broj       TEXT    NOT NULL,
     odobrenje_datum      TEXT,
-    odobrenje_izdavatelj TEXT    NOT NULL DEFAULT '',
+    odobrenje_izdavatelj TEXT    NOT NULL DEFAULT '',   -- PU/PP koja je izdala ispravu
+    oruzje_broj          TEXT,                          -- tvornički broj oružja upisanog u oružni list
+                                                        -- (obavezan kod prodaje civilu na oružni list)
 
     napomena             TEXT    NOT NULL DEFAULT '',        -- 10. Napomena
 

@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Izmjena zapisa' if uredi else 'Prodaja streljiva' }} — eKnjiga Oružja{% endblock %}
+{% block content %}
+<div class="card">
+  <h1>{{ ('Izmjena zapisa — redni broj ' ~ uredi['redni_broj']) if uredi else 'Prodaja streljiva' }}</h1>
+
+  <form method="post">
+    {% include "_streljivo_polja.html" %}
+
+    <div class="grid2">
+      <label>7. Broj lota / broj pakiranja * <input name="lot_broj" value="{{ f.get('lot_broj', '') }}" required></label>
+      <label>8. Količina * <input name="kolicina" inputmode="numeric" pattern="\d+"
+             value="{{ f.get('kolicina', '') }}" required placeholder="npr. 50"></label>
+    </div>
+
+    <label>10. Napomena <textarea name="napomena" rows="2">{{ f.get('napomena', '') }}</textarea></label>
+
+    <div class="formfoot">
+      <button type="submit">{{ 'Spremi izmjene' if uredi else 'Upiši u evidenciju' }}</button>
+      <a href="{{ url_for('streljivo_detalj', streljivo_id=uredi['id']) if uredi else url_for('streljivo_lista') }}">Odustani</a>
+      {% if not uredi %}<span class="hint">Redni broj dodjeljuje se automatski.</span>{% endif %}
+    </div>
+  </form>
+</div>
+{% endblock %}

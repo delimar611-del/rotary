@@ -14,6 +14,7 @@
   <nav>
     <a href="{{ url_for('ulaz_lista') }}">Ulazna knjiga</a>
     <a href="{{ url_for('prodaja_lista') }}">Prodajna knjiga</a>
+    <a href="{{ url_for('streljivo_lista') }}">Streljivo</a>
     <a href="{{ url_for('dobavljaci') }}">Dobavljači</a>
     <a href="{{ url_for('kupci') }}">Kupci</a>
     {% if user['rola'] == 'vlasnik' %}<a href="{{ url_for('postavke') }}">Postavke</a>{% endif %}

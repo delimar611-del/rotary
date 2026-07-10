@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Bulk prodaja streljiva — eKnjiga Oružja{% endblock %}
+{% block content %}
+<div class="card">
+  <h1>Bulk prodaja streljiva po lotovima</h1>
+  <p class="meta">Jedan kupac i isprava + lista lotova → N redaka s uzastopnim rednim brojevima.</p>
+
+  <form method="post">
+    {% include "_streljivo_polja.html" %}
+
+    <label>7.–8. Lotovi i količine * <span class="hint">(jedan po retku: broj lota; količina)</span>
+      <textarea name="lotovi" rows="8" required
+                placeholder="L-4471; 50&#10;L-4472; 50&#10;L-4473; 100">{{ f.get('lotovi', '') }}</textarea></label>
+
+    <label>10. Napomena (zajednička za sve retke)
+      <textarea name="napomena" rows="2">{{ f.get('napomena', '') }}</textarea></label>
+
+    <div class="formfoot">
+      <button type="submit">Upiši sve u evidenciju</button>
+      <a href="{{ url_for('streljivo_lista') }}">Odustani</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

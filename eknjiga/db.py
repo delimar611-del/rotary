@@ -40,8 +40,17 @@ def init_db(db_path: Path | str = DB_PATH) -> sqlite3.Connection:
     """Kreiraj shemu ako ne postoji (idempotentno) i vrati vezu."""
     conn = get_conn(db_path)
     conn.executescript(SCHEMA_PATH.read_text(encoding="utf-8"))
+    _migriraj(conn)
     conn.commit()
     return conn
+
+
+def _migriraj(conn: sqlite3.Connection) -> None:
+    """Dopune sheme za baze kreirane starijom verzijom (CREATE ... IF NOT
+    EXISTS ne dira postojeće tablice, pa se nove kolone dodaju ALTER-om)."""
+    kolone = {r["name"] for r in conn.execute("PRAGMA table_info(streljivo)")}
+    if "oruzje_broj" not in kolone:
+        conn.execute("ALTER TABLE streljivo ADD COLUMN oruzje_broj TEXT")
 
 
 def get_postavka(conn: sqlite3.Connection, kljuc: str, default: str | None = None) -> str | None:

@@ -1,0 +1,53 @@
+{# Zajednička polja streljiva (bez lota/količine): datum, kupac, vrsta/marka/
+   kalibar, kolona 9 (isprava + broj oružja). Očekuje f, odobrenje_vrste,
+   uredi (opcionalno). #}
+<label style="max-width: 260px">2. Datum prodaje *
+  <input type="date" name="datum_prodaje" value="{{ f.get('datum_prodaje', '') }}" required></label>
+
+{% if not uredi %}
+  {% with prefix='kupac', legenda='3. Podaci o kupcu (ime i prezime / naziv, adresa, OIB — obavezno)',
+          api_url=url_for('api_kupci'), naziv_jd='kupca' %}
+    {% include "_partner_polje.html" %}
+  {% endwith %}
+{% endif %}
+
+<div class="grid3">
+  <label>4. Vrsta * <input name="vrsta" value="{{ f.get('vrsta', '') }}" required placeholder="npr. karabinsko streljivo"></label>
+  <label>5. Marka (proizvođač) * <input name="marka" value="{{ f.get('marka', '') }}" required placeholder="npr. Geco"></label>
+  <label>6. Kalibar * <input name="kalibar" value="{{ f.get('kalibar', '') }}" required placeholder="npr. .30-06"></label>
+</div>
+
+<fieldset>
+  <legend>9. Broj i datum odobrenja za promet ili broj oružnog lista</legend>
+  <div class="grid2">
+    <label>Vrsta isprave *
+      <select name="odobrenje_vrsta" id="streljivo-odobrenje-vrsta" required>
+        <option value="">—</option>
+        {% for kljuc, naziv in odobrenje_vrste.items() %}
+        <option value="{{ kljuc }}" {% if f.get('odobrenje_vrsta') == kljuc %}selected{% endif %}>{{ naziv }}</option>
+        {% endfor %}
+      </select></label>
+    <label>Broj isprave * <input name="odobrenje_broj" value="{{ f.get('odobrenje_broj', '') }}" required></label>
+    <label>Datum isprave <input type="date" name="odobrenje_datum" value="{{ f.get('odobrenje_datum') or '' }}"></label>
+    <label>Izdavatelj — policijska uprava / postaja *
+      <input name="odobrenje_izdavatelj" value="{{ f.get('odobrenje_izdavatelj', '') }}"
+             required placeholder="npr. PP Sesvete"></label>
+  </div>
+  <label id="oruzje-broj-polje">Tvornički broj oružja upisanog u oružni list
+    <span class="hint">(obavezno kod prodaje na oružni list)</span>
+    <input name="oruzje_broj" value="{{ f.get('oruzje_broj') or '' }}"></label>
+</fieldset>
+
+<script>
+(function () {
+  var vrsta = document.getElementById("streljivo-odobrenje-vrsta");
+  var polje = document.getElementById("oruzje-broj-polje");
+  function osvjezi() {
+    var ol = vrsta.value === "oruzni_list";
+    polje.style.display = ol ? "" : "none";
+    polje.querySelector("input").required = ol;
+  }
+  vrsta.addEventListener("change", osvjezi);
+  osvjezi();
+})();
+</script>

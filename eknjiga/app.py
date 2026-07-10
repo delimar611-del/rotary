@@ -29,6 +29,13 @@ ODOBRENJE_VRSTE = {
     "odobrenje_za_promet": "odobrenje za promet",
 }
 
+# Kolona 9 evidencije streljiva: prodaja civilu na oružni list ili trgovcu
+# na odobrenje za promet
+ODOBRENJE_VRSTE_STRELJIVO = {
+    "oruzni_list": "oružni list",
+    "odobrenje_za_promet": "odobrenje za promet",
+}
+
 
 def create_app(db_path: Path | str = db.DB_PATH) -> Flask:
     app = Flask(__name__)
@@ -182,6 +189,55 @@ def _prodaja_dict(row) -> dict:
              "napomena", "ulaz_id", "status",
              "legacy_knjiga", "legacy_stranica", "legacy_redni_broj")
     return {p: row[p] for p in polja}
+
+
+def _streljivo_dict(row) -> dict:
+    """Snimka retka streljiva za audit log (samo podatkovna polja)."""
+    polja = ("redni_broj", "datum_prodaje", "kupac_id", "vrsta", "marka",
+             "kalibar", "lot_broj", "kolicina", "odobrenje_vrsta",
+             "odobrenje_broj", "odobrenje_datum", "odobrenje_izdavatelj",
+             "oruzje_broj", "napomena", "status",
+             "legacy_knjiga", "legacy_stranica", "legacy_redni_broj")
+    return {p: row[p] for p in polja}
+
+
+def parse_lotovi(tekst: str) -> tuple[list[tuple[str, int]], list[str]]:
+    """Parsiraj retke „lot;količina” (ili lot,količina / lot količina).
+
+    Vraća (lista (lot, količina), greške).
+    """
+    lotovi: list[tuple[str, int]] = []
+    greske: list[str] = []
+    for i, redak in enumerate(tekst.splitlines(), start=1):
+        redak = redak.strip()
+        if not redak:
+            continue
+        dijelovi = [d for d in re.split(r"[;,\t]+|\s{2,}|(?<=\S)\s+(?=\d+$)", redak) if d.strip()]
+        if len(dijelovi) != 2:
+            greske.append(f"Redak {i}: očekivan oblik „broj lota; količina” — dobiveno „{redak}”.")
+            continue
+        lot, kolicina = dijelovi[0].strip(), dijelovi[1].strip()
+        if not kolicina.isdigit() or int(kolicina) <= 0:
+            greske.append(f"Redak {i}: količina mora biti pozitivan broj — dobiveno „{kolicina}”.")
+            continue
+        lotovi.append((lot, int(kolicina)))
+    return lotovi, greske
+
+
+def provjeri_kupca_streljivo(conn, kupac_id: int) -> str | None:
+    """Za prodaju streljiva kupac mora imati potpune podatke:
+    ime i prezime / naziv, adresu i OIB."""
+    k = conn.execute("SELECT * FROM kupci WHERE id = ?", (kupac_id,)).fetchone()
+    nedostaje = []
+    if not k["adresa"]:
+        nedostaje.append("adresa")
+    if not k["oib"]:
+        nedostaje.append("OIB")
+    if nedostaje:
+        return (f"Kupcu „{k['naziv']}” nedostaje: {', '.join(nedostaje)}. "
+                "Za prodaju streljiva obavezni su ime i prezime, adresa i OIB — "
+                "dopunite podatke u šifrarniku kupaca.")
+    return None
 
 
 def _ulaz_dict(row) -> dict:
@@ -836,6 +892,264 @@ def register_routes(app: Flask) -> None:
             return redirect(url_for("prodaja_detalj", prodaja_id=prodaja_id))
         return render_template("prodaja_forma.html", f=dict(zapis), ulaz=None, uredi=zapis,
                                kategorije=KATEGORIJE, odobrenje_vrste=ODOBRENJE_VRSTE)
+
+    # ---------------- Evidencija streljiva ----------------
+
+    def _validiraj_streljivo(f) -> list[str]:
+        """Zajednička validacija polja streljiva (bez lota/količine)."""
+        greske = []
+        for kljuc, naziv in [("datum_prodaje", "Datum prodaje"), ("vrsta", "Vrsta"),
+                             ("marka", "Marka (proizvođač)"), ("kalibar", "Kalibar"),
+                             ("odobrenje_broj", "Broj isprave"),
+                             ("odobrenje_izdavatelj", "Izdavatelj (PU/PP)")]:
+            if not f.get(kljuc, "").strip():
+                greske.append(f"{naziv} je obavezno polje.")
+        if f.get("odobrenje_vrsta", "").strip() not in ODOBRENJE_VRSTE_STRELJIVO:
+            greske.append("Odaberite vrstu isprave (oružni list / odobrenje za promet).")
+        if (f.get("odobrenje_vrsta") == "oruzni_list"
+                and not f.get("oruzje_broj", "").strip()):
+            greske.append("Kod prodaje na oružni list obavezan je tvornički broj "
+                          "oružja upisanog u oružni list.")
+        return greske
+
+    def _streljivo_insert(conn, f, redni_broj, kupac_id, lot, kolicina):
+        cur = conn.execute(
+            "INSERT INTO streljivo (redni_broj, datum_prodaje, kupac_id, vrsta, marka, "
+            "kalibar, lot_broj, kolicina, odobrenje_vrsta, odobrenje_broj, odobrenje_datum, "
+            "odobrenje_izdavatelj, oruzje_broj, napomena, kreirao_id) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (redni_broj, f.get("datum_prodaje", "").strip(), kupac_id,
+             f.get("vrsta", "").strip(), f.get("marka", "").strip(),
+             f.get("kalibar", "").strip(), lot, kolicina,
+             f.get("odobrenje_vrsta", "").strip(), f.get("odobrenje_broj", "").strip(),
+             f.get("odobrenje_datum", "").strip() or None,
+             f.get("odobrenje_izdavatelj", "").strip(),
+             f.get("oruzje_broj", "").strip() or None,
+             f.get("napomena", "").strip(), g.user["id"]),
+        )
+        novi = conn.execute("SELECT * FROM streljivo WHERE id = ?", (cur.lastrowid,)).fetchone()
+        db.audit(conn, g.user["id"], g.user["korisnicko_ime"], "streljivo",
+                 cur.lastrowid, "unos", None, _streljivo_dict(novi))
+
+    @app.get("/streljivo")
+    @login_required
+    def streljivo_lista():
+        conn = get_conn()
+        q = request.args.get("q", "").strip()
+        datum_od = request.args.get("datum_od", "").strip()
+        datum_do = request.args.get("datum_do", "").strip()
+
+        uvjeti, params = [], []
+        if q:
+            uvjeti.append(
+                "(s.marka LIKE ? OR s.vrsta LIKE ? OR s.kalibar LIKE ? OR s.lot_broj LIKE ? "
+                "OR k.naziv LIKE ? OR s.odobrenje_broj LIKE ? OR s.oruzje_broj LIKE ?)"
+            )
+            params += [f"%{q}%"] * 7
+        if datum_od:
+            uvjeti.append("s.datum_prodaje >= ?"); params.append(datum_od)
+        if datum_do:
+            uvjeti.append("s.datum_prodaje <= ?"); params.append(datum_do)
+
+        sql = (
+            "SELECT s.*, k.naziv AS kupac_naziv, k.adresa AS kupac_adresa, "
+            "k.oib AS kupac_oib FROM streljivo s JOIN kupci k ON k.id = s.kupac_id"
+        )
+        if uvjeti:
+            sql += " WHERE " + " AND ".join(uvjeti)
+        sql += " ORDER BY s.redni_broj DESC LIMIT 200"
+        zapisi = conn.execute(sql, params).fetchall()
+        ukupno = conn.execute("SELECT COUNT(*) AS n FROM streljivo").fetchone()["n"]
+        return render_template("streljivo_lista.html", zapisi=zapisi, ukupno=ukupno,
+                               odobrenje_vrste=ODOBRENJE_VRSTE_STRELJIVO)
+
+    @app.route("/streljivo/novo", methods=["GET", "POST"])
+    @login_required
+    def streljivo_novo():
+        conn = get_conn()
+        if request.method == "POST":
+            f = request.form
+            greske = _validiraj_streljivo(f)
+            lot = f.get("lot_broj", "").strip()
+            kolicina = f.get("kolicina", "").strip()
+            if not lot:
+                greske.append("Broj lota / broj pakiranja je obavezno polje.")
+            if not kolicina.isdigit() or int(kolicina) <= 0:
+                greske.append("Količina mora biti pozitivan broj.")
+            if greske:
+                for gr in greske:
+                    flash(gr, "error")
+                return render_template("streljivo_forma.html", f=f,
+                                       odobrenje_vrste=ODOBRENJE_VRSTE_STRELJIVO)
+
+            conn.execute("BEGIN IMMEDIATE")
+            try:
+                kupac_id, err = dohvati_ili_kreiraj_partnera(conn, f, "kupac")
+                if not err:
+                    err = provjeri_kupca_streljivo(conn, kupac_id)
+                if err:
+                    conn.execute("ROLLBACK")
+                    flash(err, "error")
+                    return render_template("streljivo_forma.html", f=f,
+                                           odobrenje_vrste=ODOBRENJE_VRSTE_STRELJIVO)
+                redni_broj = db.sljedeci_redni_broj(conn, "streljivo")
+                _streljivo_insert(conn, f, redni_broj, kupac_id, lot, int(kolicina))
+                conn.execute("COMMIT")
+            except Exception:
+                conn.execute("ROLLBACK")
+                raise
+            flash(f"Upisan redni broj {redni_broj}.", "ok")
+            return redirect(url_for("streljivo_lista"))
+
+        return render_template("streljivo_forma.html", f={},
+                               odobrenje_vrste=ODOBRENJE_VRSTE_STRELJIVO)
+
+    @app.route("/streljivo/bulk", methods=["GET", "POST"])
+    @login_required
+    def streljivo_bulk():
+        conn = get_conn()
+        if request.method == "POST":
+            f = request.form
+            greske = _validiraj_streljivo(f)
+            lotovi, lot_greske = parse_lotovi(f.get("lotovi", ""))
+            greske += lot_greske
+            if not lotovi and not lot_greske:
+                greske.append("Unesite barem jedan redak „broj lota; količina”.")
+            if greske:
+                for gr in greske:
+                    flash(gr, "error")
+                return render_template("streljivo_bulk.html", f=f,
+                                       odobrenje_vrste=ODOBRENJE_VRSTE_STRELJIVO)
+
+            conn.execute("BEGIN IMMEDIATE")
+            try:
+                kupac_id, err = dohvati_ili_kreiraj_partnera(conn, f, "kupac")
+                if not err:
+                    err = provjeri_kupca_streljivo(conn, kupac_id)
+                if err:
+                    conn.execute("ROLLBACK")
+                    flash(err, "error")
+                    return render_template("streljivo_bulk.html", f=f,
+                                           odobrenje_vrste=ODOBRENJE_VRSTE_STRELJIVO)
+                prvi = db.sljedeci_redni_broj(conn, "streljivo")
+                for i, (lot, kolicina) in enumerate(lotovi):
+                    _streljivo_insert(conn, f, prvi + i, kupac_id, lot, kolicina)
+                conn.execute("COMMIT")
+            except Exception:
+                conn.execute("ROLLBACK")
+                raise
+            flash(f"Upisano {len(lotovi)} zapisa: redni brojevi "
+                  f"{prvi}–{prvi + len(lotovi) - 1}.", "ok")
+            return redirect(url_for("streljivo_lista"))
+
+        return render_template("streljivo_bulk.html", f={},
+                               odobrenje_vrste=ODOBRENJE_VRSTE_STRELJIVO)
+
+    @app.get("/streljivo/<int:streljivo_id>")
+    @login_required
+    def streljivo_detalj(streljivo_id):
+        conn = get_conn()
+        zapis = conn.execute(
+            "SELECT s.*, k.naziv AS kupac_naziv, k.adresa AS kupac_adresa, "
+            "k.oib AS kupac_oib FROM streljivo s JOIN kupci k ON k.id = s.kupac_id "
+            "WHERE s.id = ?", (streljivo_id,),
+        ).fetchone()
+        if zapis is None:
+            abort(404)
+        audit_zapisi = conn.execute(
+            "SELECT * FROM audit_log WHERE tablica = 'streljivo' AND zapis_id = ? ORDER BY id",
+            (streljivo_id,),
+        ).fetchall()
+        return render_template("streljivo_detalj.html", z=zapis, audit_zapisi=audit_zapisi,
+                               odobrenje_vrste=ODOBRENJE_VRSTE_STRELJIVO)
+
+    @app.route("/streljivo/<int:streljivo_id>/uredi", methods=["GET", "POST"])
+    @vlasnik_required
+    def streljivo_uredi(streljivo_id):
+        conn = get_conn()
+        zapis = conn.execute("SELECT * FROM streljivo WHERE id = ?", (streljivo_id,)).fetchone()
+        if zapis is None:
+            abort(404)
+        if zapis["status"] == "storno":
+            flash("Stornirani zapis se ne može uređivati.", "error")
+            return redirect(url_for("streljivo_detalj", streljivo_id=streljivo_id))
+        if request.method == "POST":
+            f = request.form
+            greske = _validiraj_streljivo(f)
+            lot = f.get("lot_broj", "").strip()
+            kolicina = f.get("kolicina", "").strip()
+            if not lot:
+                greske.append("Broj lota / broj pakiranja je obavezno polje.")
+            if not kolicina.isdigit() or int(kolicina) <= 0:
+                greske.append("Količina mora biti pozitivan broj.")
+            if greske:
+                for gr in greske:
+                    flash(gr, "error")
+                return render_template("streljivo_forma.html", f=f, uredi=zapis,
+                                       odobrenje_vrste=ODOBRENJE_VRSTE_STRELJIVO)
+            staro = _streljivo_dict(zapis)
+            novo = dict(staro)
+            novo.update({
+                "datum_prodaje": f.get("datum_prodaje", "").strip(),
+                "vrsta": f.get("vrsta", "").strip(),
+                "marka": f.get("marka", "").strip(),
+                "kalibar": f.get("kalibar", "").strip(),
+                "lot_broj": lot,
+                "kolicina": int(kolicina),
+                "odobrenje_vrsta": f.get("odobrenje_vrsta", "").strip(),
+                "odobrenje_broj": f.get("odobrenje_broj", "").strip(),
+                "odobrenje_datum": f.get("odobrenje_datum", "").strip() or None,
+                "odobrenje_izdavatelj": f.get("odobrenje_izdavatelj", "").strip(),
+                "oruzje_broj": f.get("oruzje_broj", "").strip() or None,
+                "napomena": f.get("napomena", "").strip(),
+            })
+            if novo == staro:
+                flash("Nema izmjena.", "ok")
+                return redirect(url_for("streljivo_detalj", streljivo_id=streljivo_id))
+            conn.execute(
+                "UPDATE streljivo SET datum_prodaje=?, vrsta=?, marka=?, kalibar=?, "
+                "lot_broj=?, kolicina=?, odobrenje_vrsta=?, odobrenje_broj=?, "
+                "odobrenje_datum=?, odobrenje_izdavatelj=?, oruzje_broj=?, napomena=?, "
+                "izmijenio_id=?, izmijenjeno=datetime('now','localtime') WHERE id=?",
+                (novo["datum_prodaje"], novo["vrsta"], novo["marka"], novo["kalibar"],
+                 novo["lot_broj"], novo["kolicina"], novo["odobrenje_vrsta"],
+                 novo["odobrenje_broj"], novo["odobrenje_datum"],
+                 novo["odobrenje_izdavatelj"], novo["oruzje_broj"], novo["napomena"],
+                 g.user["id"], streljivo_id),
+            )
+            db.audit(conn, g.user["id"], g.user["korisnicko_ime"], "streljivo",
+                     streljivo_id, "izmjena", staro, novo)
+            conn.commit()
+            flash("Zapis izmijenjen (staro stanje sačuvano u dnevniku izmjena).", "ok")
+            return redirect(url_for("streljivo_detalj", streljivo_id=streljivo_id))
+        return render_template("streljivo_forma.html", f=dict(zapis), uredi=zapis,
+                               odobrenje_vrste=ODOBRENJE_VRSTE_STRELJIVO)
+
+    @app.route("/streljivo/<int:streljivo_id>/storno", methods=["POST"])
+    @vlasnik_required
+    def streljivo_storno(streljivo_id):
+        conn = get_conn()
+        zapis = conn.execute("SELECT * FROM streljivo WHERE id = ?", (streljivo_id,)).fetchone()
+        if zapis is None:
+            abort(404)
+        razlog = request.form.get("storno_razlog", "").strip()
+        if zapis["status"] == "storno":
+            flash("Zapis je već storniran.", "error")
+        elif not razlog:
+            flash("Obrazloženje storna je obavezno.", "error")
+        else:
+            staro = _streljivo_dict(zapis)
+            conn.execute(
+                "UPDATE streljivo SET status='storno', storno_razlog=?, storno_korisnik_id=?, "
+                "storno_vrijeme=datetime('now','localtime') WHERE id=?",
+                (razlog, g.user["id"], streljivo_id),
+            )
+            novo = dict(staro); novo["status"] = "storno"; novo["storno_razlog"] = razlog
+            db.audit(conn, g.user["id"], g.user["korisnicko_ime"], "streljivo",
+                     streljivo_id, "storno", staro, novo)
+            conn.commit()
+            flash(f"Redni broj {zapis['redni_broj']} storniran.", "ok")
+        return redirect(url_for("streljivo_detalj", streljivo_id=streljivo_id))
 
     # ---------------- Šifrarnici (dobavljači/kupci) + autocomplete ----------------
 
