@@ -1,0 +1,37 @@
+[
+  {"inv": "512/P1/1", "buyer": "Trgovina Čavlović d.o.o.", "buyer_oib": "12345678901", "date": "20.06.2026", "amount": 1845.50, "pay_status": "UNPAID", "paid_sum": 0.0, "payment_refs": []},
+  {"inv": "498/P1/1", "buyer": "Trgovina Čavlović d.o.o.", "buyer_oib": "12345678901", "date": "01.06.2026", "amount": 2310.00, "pay_status": "UNPAID", "paid_sum": 0.0, "payment_refs": []},
+  {"inv": "455/P1/1", "buyer": "Trgovina Čavlović d.o.o.", "buyer_oib": "12345678901", "date": "05.05.2026", "amount": 1990.25, "pay_status": "PAID", "paid_sum": 1990.25, "payment_refs": ["HR00 455-2026"]},
+
+  {"inv": "509/P1/1", "buyer": "Market Šimunić j.d.o.o.", "buyer_oib": "23456789012", "date": "18.06.2026", "amount": 764.80, "pay_status": "UNPAID", "paid_sum": 0.0, "payment_refs": []},
+  {"inv": "471/P1/1", "buyer": "Market Šimunić j.d.o.o.", "buyer_oib": "23456789012", "date": "15.05.2026", "amount": 1120.40, "pay_status": "PARTIAL", "paid_sum": 500.00, "payment_refs": ["HR00 471-2026"]},
+  {"inv": "430/P1/1", "buyer": "Market Šimunić j.d.o.o.", "buyer_oib": "23456789012", "date": "10.04.2026", "amount": 980.00, "pay_status": "PAID (platform)", "paid_sum": 980.00, "payment_refs": ["ePoslovanje #88231"]},
+
+  {"inv": "503/P1/1", "buyer": "Pekarnica Đurđica, obrt", "buyer_oib": "34567890123", "date": "12.06.2026", "amount": 415.30, "pay_status": "UNPAID", "paid_sum": 0.0, "payment_refs": []},
+  {"inv": "466/P1/1", "buyer": "Pekarnica Đurđica, obrt", "buyer_oib": "34567890123", "date": "12.05.2026", "amount": 388.90, "pay_status": "UNPAID", "paid_sum": 0.0, "payment_refs": []},
+  {"inv": "421/P1/1", "buyer": "Pekarnica Đurđica, obrt", "buyer_oib": "34567890123", "date": "02.04.2026", "amount": 402.60, "pay_status": "UNPAID", "paid_sum": 0.0, "payment_refs": []},
+
+  {"inv": "489/P1/1", "buyer": "Kiosk Žnidarić", "buyer_oib": "45678901234", "date": "28.05.2026", "amount": 256.75, "pay_status": "PAID", "paid_sum": 256.75, "payment_refs": ["HR00 489-2026"]},
+  {"inv": "460/P1/1", "buyer": "Kiosk Žnidarić", "buyer_oib": "45678901234", "date": "20.04.2026", "amount": 312.20, "pay_status": "UNPAID", "paid_sum": 0.0, "payment_refs": []},
+
+  {"inv": "482/P1/1", "buyer": "Minimarket Ćorić d.o.o.", "buyer_oib": "56789012345", "date": "25.05.2026", "amount": 1675.00, "pay_status": "PARTIAL", "paid_sum": 1000.00, "payment_refs": ["HR00 482-2026 djelomično"]},
+  {"inv": "440/P1/1", "buyer": "Minimarket Ćorić d.o.o.", "buyer_oib": "56789012345", "date": "20.03.2026", "amount": 1430.65, "pay_status": "UNPAID", "paid_sum": 0.0, "payment_refs": []},
+
+  {"inv": "515/P1/1", "buyer": "Trgovina Kovačević d.o.o.", "buyer_oib": "67890123456", "date": "25.06.2026", "amount": 2940.10, "pay_status": "UNPAID", "paid_sum": 0.0, "payment_refs": []},
+  {"inv": "452/P1/1", "buyer": "Trgovina Kovačević d.o.o.", "buyer_oib": "67890123456", "date": "28.04.2026", "amount": 3105.45, "pay_status": "PAID", "paid_sum": 3105.45, "payment_refs": ["HR00 452-2026"]},
+
+  {"inv": "506/P1/1", "buyer": "Dućan Perišić j.d.o.o.", "buyer_oib": "78901234567", "date": "15.06.2026", "amount": 845.90, "pay_status": "N/A (storno)", "paid_sum": 0.0, "payment_refs": []},
+  {"inv": "507/P1/1", "buyer": "Dućan Perišić j.d.o.o.", "buyer_oib": "78901234567", "date": "15.06.2026", "amount": 845.90, "pay_status": "UNPAID", "paid_sum": 0.0, "payment_refs": []},
+
+  {"inv": "475/P1/1", "buyer": "Boutique Lončar", "buyer_oib": "89012345678", "date": "18.05.2026", "amount": 1288.35, "pay_status": "UNPAID", "paid_sum": 0.0, "payment_refs": []},
+  {"inv": "410/P1/1", "buyer": "Boutique Lončar", "buyer_oib": "89012345678", "date": "15.01.2026", "amount": 1544.70, "pay_status": "UNPAID", "paid_sum": 0.0, "payment_refs": []},
+
+  {"inv": "493/P1/1", "buyer": "Konoba Matić", "buyer_oib": "90123456789", "date": "03.06.2026", "amount": 674.25, "pay_status": "PAID (platform)", "paid_sum": 674.25, "payment_refs": ["ePoslovanje #90412"]},
+  {"inv": "435/P1/1", "buyer": "Konoba Matić", "buyer_oib": "90123456789", "date": "12.02.2026", "amount": 733.80, "pay_status": "PARTIAL", "paid_sum": 300.00, "payment_refs": ["HR00 435-2026"]},
+
+  {"inv": "500/P1/1", "buyer": "Špecerija Novak d.o.o.", "buyer_oib": "11223344556", "date": "08.06.2026", "amount": 921.15, "pay_status": "UNPAID", "paid_sum": 0.0, "payment_refs": []},
+  {"inv": "418/P1/1", "buyer": "Špecerija Novak d.o.o.", "buyer_oib": "11223344556", "date": "22.01.2026", "amount": 887.40, "pay_status": "UNPAID", "paid_sum": 0.0, "payment_refs": []},
+
+  {"inv": "511/P1/1", "buyer": "Trafika Horvat, obrt", "buyer_oib": "22334455667", "date": "19.06.2026", "amount": 199.95, "pay_status": "PAID", "paid_sum": 199.95, "payment_refs": ["HR00 511-2026"]},
+  {"inv": "446/P1/1", "buyer": "Trafika Horvat, obrt", "buyer_oib": "22334455667", "date": "25.03.2026", "amount": 245.10, "pay_status": "UNPAID", "paid_sum": 0.0, "payment_refs": []}
+]
