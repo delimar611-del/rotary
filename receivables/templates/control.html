@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Kontrola{% endblock %}
+{% block content %}
+<h1>Kontrola — novac se ne smije skrivati</h1>
+
+<div class="panel scroll-x">
+  <h2>Nespojene uplate {% if open_sum %}<span class="warn-text">({{ open_sum|eur }} otvoreno)</span>{% endif %}</h2>
+  <p class="muted" style="font-size: 13px;">Uplate koje FIFO sparivanje nije uspjelo povezati ni s jednim računom.
+  „Razriješeno" znači da se uplata u novijem uvozu više ne pojavljuje kao nespojena.</p>
+  <table>
+    <thead><tr><th>Datum</th><th>Uplatitelj</th><th class="num">Iznos</th><th>Referenca</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+    {% for u in unmatched %}
+      <tr>
+        <td>{{ u.pay_date|hrdate }}</td>
+        <td>{{ u.payer or '—' }}</td>
+        <td class="num"><strong>{{ u.amount_cents|eur }}</strong></td>
+        <td>{{ u.reference or '—' }}</td>
+        <td>
+          {% if u.status == 'open' %}<span class="badge st-storno">⚠ OTVORENO</span>
+          {% elif u.status == 'dismissed' %}<span class="badge">ODBAČENO</span>
+          {% else %}<span class="badge st-paid">✓ RAZRIJEŠENO</span>{% endif %}
+        </td>
+        <td>
+          {% if u.status == 'open' %}
+          <form class="inline" method="post" action="{{ url_for('unmatched_status', pid=u.id) }}">
+            <input type="hidden" name="status" value="dismissed">
+            <button class="ghost" type="submit" title="Označi kao provjereno/nevažno">Odbaci</button>
+          </form>
+          {% elif u.status == 'dismissed' %}
+          <form class="inline" method="post" action="{{ url_for('unmatched_status', pid=u.id) }}">
+            <input type="hidden" name="status" value="open">
+            <button class="ghost" type="submit">Vrati</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+    {% else %}
+      <tr><td colspan="6" class="muted">Nema evidentiranih nespojenih uplata.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="panel scroll-x">
+  <h2>Storno računi (N/A) {% if storno_sum %}— {{ storno_sum|eur }}{% endif %}</h2>
+  <table>
+    <thead><tr><th>Račun</th><th>Kupac</th><th>Izdan</th><th class="num">Iznos</th></tr></thead>
+    <tbody>
+    {% for s in stornos %}
+      <tr>
+        <td>{{ s.inv }}</td>
+        <td><a href="{{ url_for('partner_detail', oib=s.buyer_oib) }}">{{ s.buyer }}</a></td>
+        <td>{{ s.issue_date|hrdate }}</td>
+        <td class="num">{{ s.amount_cents|eur }}</td>
+      </tr>
+    {% else %}
+      <tr><td colspan="4" class="muted">Nema storno računa.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

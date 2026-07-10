@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="hr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}Naplata{% endblock %} — {{ company.name }}</title>
+<style>
+:root {
+  --page: #f9f9f7; --surface: #fcfcfb;
+  --ink: #0b0b0b; --ink-2: #52514e; --muted: #898781;
+  --grid: #e1e0d9; --baseline: #c3c2b7;
+  --border: rgba(11,11,11,0.10);
+  --accent: #2a78d6;
+  --ramp-0: #898781;
+  --ramp-1: #86b6ef; --ramp-2: #5598e7; --ramp-3: #2a78d6;
+  --ramp-4: #1c5cab; --ramp-5: #104281;
+  --good: #0ca30c; --warning: #fab219; --serious: #ec835a; --critical: #d03b3b;
+  --good-text: #006300;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --page: #0d0d0d; --surface: #1a1a19;
+    --ink: #ffffff; --ink-2: #c3c2b7; --muted: #898781;
+    --grid: #2c2c2a; --baseline: #383835;
+    --border: rgba(255,255,255,0.10);
+    --accent: #3987e5;
+    --ramp-1: #9ec5f4; --ramp-2: #6da7ec; --ramp-3: #3987e5;
+    --ramp-4: #256abf; --ramp-5: #184f95;
+    --good-text: #0ca30c;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--page); color: var(--ink);
+  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+header {
+  background: var(--surface); border-bottom: 1px solid var(--grid);
+  padding: 0 24px; display: flex; align-items: center; gap: 24px;
+}
+header .brand { font-weight: 700; padding: 14px 0; }
+header nav { display: flex; gap: 4px; }
+header nav a {
+  color: var(--ink-2); padding: 14px 12px; border-bottom: 2px solid transparent;
+}
+header nav a:hover { color: var(--ink); text-decoration: none; }
+header nav a.active { color: var(--ink); border-bottom-color: var(--accent); font-weight: 600; }
+main { max-width: 1100px; margin: 0 auto; padding: 24px; }
+h1 { font-size: 22px; margin: 4px 0 16px; }
+h2 { font-size: 16px; margin: 0 0 12px; }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
+.card, .panel {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 10px; padding: 16px 18px;
+}
+.panel { margin-bottom: 24px; }
+.card .label { color: var(--ink-2); font-size: 13px; }
+.card .value { font-size: 26px; font-weight: 700; margin-top: 2px; }
+.card .sub { color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+.card.alert .value { color: var(--critical); }
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--grid); }
+th { color: var(--muted); font-size: 12.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .03em; }
+tr:last-child td { border-bottom: none; }
+tbody tr:hover td { background: color-mix(in srgb, var(--accent) 6%, transparent); }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.badge {
+  display: inline-block; padding: 1px 8px; border-radius: 999px;
+  font-size: 12px; font-weight: 600; border: 1px solid var(--border); color: var(--ink-2);
+}
+.badge.b0 { color: var(--muted); }
+.badge.b1 { border-color: var(--ramp-1); color: var(--ink); }
+.badge.b2 { border-color: var(--ramp-2); color: var(--ink); }
+.badge.b3 { border-color: var(--ramp-3); color: var(--ink); }
+.badge.b4 { border-color: var(--ramp-4); color: var(--ink); }
+.badge.b5 { border-color: var(--ramp-5); color: var(--ink); }
+.badge .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; vertical-align: 1px; }
+.badge.st-partial { border-color: var(--warning); }
+.badge.st-storno { border-color: var(--serious); }
+.badge.st-paid { border-color: var(--good); }
+.aging-row { display: grid; grid-template-columns: 110px 1fr 170px; gap: 10px; align-items: center; margin: 6px 0; }
+.aging-row .lbl { color: var(--ink-2); font-size: 13px; text-align: right; }
+.aging-row .track { height: 22px; position: relative; }
+.aging-row .bar {
+  height: 100%; border-radius: 0 4px 4px 0; min-width: 2px;
+  border: 2px solid var(--surface); border-left: none;
+}
+.aging-row .val { font-size: 13px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.aging-row a.track:hover .bar { outline: 2px solid var(--baseline); }
+form.inline { display: inline; }
+input[type=text], input[type=email], input[type=number], textarea, select {
+  background: var(--page); color: var(--ink); border: 1px solid var(--baseline);
+  border-radius: 6px; padding: 7px 10px; font: inherit; width: 100%;
+}
+textarea { min-height: 70px; resize: vertical; }
+label { display: block; font-size: 13px; color: var(--ink-2); margin: 10px 0 4px; }
+button, .btn {
+  background: var(--accent); color: #fff; border: none; border-radius: 7px;
+  padding: 8px 14px; font: inherit; font-weight: 600; cursor: pointer;
+}
+button.ghost, .btn.ghost {
+  background: transparent; color: var(--ink-2); border: 1px solid var(--baseline);
+}
+button:hover { filter: brightness(1.08); }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: start; }
+@media (max-width: 800px) { .grid-2 { grid-template-columns: 1fr; } }
+.muted { color: var(--muted); }
+.ok { color: var(--good-text); font-weight: 600; }
+.warn-text { color: var(--critical); font-weight: 600; }
+.scroll-x { overflow-x: auto; }
+.toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; align-items: center; }
+.toolbar .chip {
+  border: 1px solid var(--baseline); border-radius: 999px; padding: 3px 12px;
+  font-size: 13px; color: var(--ink-2); background: var(--surface);
+}
+.toolbar .chip.active { border-color: var(--accent); color: var(--ink); font-weight: 600; }
+.toolbar .chip:hover { text-decoration: none; border-color: var(--accent); }
+pre.mail {
+  background: var(--page); border: 1px solid var(--grid); border-radius: 8px;
+  padding: 14px; white-space: pre-wrap; font: 13.5px/1.55 ui-monospace, Menlo, Consolas, monospace;
+}
+.flash { background: color-mix(in srgb, var(--good) 12%, var(--surface)); border: 1px solid var(--good); border-radius: 8px; padding: 10px 14px; margin-bottom: 16px; }
+</style>
+</head>
+<body>
+<header>
+  <span class="brand">{{ company.name }} · naplata</span>
+  <nav>
+    {% set p = request.path %}
+    <a href="{{ url_for('overview') }}" class="{{ 'active' if p == '/' }}">Pregled</a>
+    <a href="{{ url_for('invoices_view') }}" class="{{ 'active' if p.startswith('/racuni') }}">Računi</a>
+    <a href="{{ url_for('partners_view') }}" class="{{ 'active' if p.startswith('/partneri') }}">Partneri</a>
+    <a href="{{ url_for('reminders_view') }}" class="{{ 'active' if p.startswith('/podsjetnici') }}">Podsjetnici</a>
+    <a href="{{ url_for('control_view') }}" class="{{ 'active' if p.startswith('/kontrola') }}">Kontrola</a>
+  </nav>
+</header>
+<main>
+{% block content %}{% endblock %}
+</main>
+</body>
+</html>

@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Podsjetnik #{{ rem.id }}{% endblock %}
+{% block content %}
+<h1>Podsjetnik #{{ rem.id }} — {{ rem.partner_name }}</h1>
+
+{% if saved %}<div class="flash">✓ Skica je spremljena u <code>outbox/</code>. E-mail NIJE poslan — kopirajte sadržaj u svoj mail program.</div>{% endif %}
+
+<div class="panel">
+  <p>
+    <strong>Razina:</strong> {{ rem.level }}. {{ level_names[rem.level] }} ·
+    <strong>Skiciran:</strong> {{ rem.drafted_at[:10]|hrdate }} ·
+    <strong>Iznos:</strong> {{ rem.outstanding_cents|eur }} ·
+    <strong>Računi:</strong> {{ invoices|join(', ') }}
+  </p>
+  <p><strong>Za:</strong> {{ rem.partner_email or '—' }}<br>
+     <strong>Predmet:</strong> {{ rem.subject }}</p>
+  <pre class="mail">{{ rem.body }}</pre>
+
+  <div class="toolbar">
+    <a class="btn ghost" href="{{ url_for('reminder_download', rid=rem.id) }}">Preuzmi .txt</a>
+    {% if rem.sent_at %}
+      <span class="ok">✓ Označen kao poslan {{ rem.sent_at[:10]|hrdate }}</span>
+      <form class="inline" method="post" action="{{ url_for('reminder_mark_sent', rid=rem.id) }}">
+        <input type="hidden" name="undo" value="1">
+        <button class="ghost" type="submit">Poništi oznaku</button>
+      </form>
+    {% else %}
+      <form class="inline" method="post" action="{{ url_for('reminder_mark_sent', rid=rem.id) }}">
+        <button type="submit">Označi kao poslan</button>
+      </form>
+      <span class="muted">Označite tek nakon što ste e-mail ručno poslali.</span>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

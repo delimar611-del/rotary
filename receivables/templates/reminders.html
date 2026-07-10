@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Podsjetnici{% endblock %}
+{% block content %}
+<h1>Podsjetnici za plaćanje</h1>
+<p class="muted">Aplikacija <strong>nikada ne šalje e-mail</strong> — skice se spremaju u mapu <code>outbox/</code>, a Vi ih kopirate u svoj mail program i ručno označite kao poslane.</p>
+
+<div class="panel scroll-x">
+  <h2>Partneri s dospjelim dugom</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Partner</th><th class="num">Dospjelo</th><th class="num">Računa</th>
+        <th class="num">Kasni najviše</th><th>Predložena razina</th>
+        <th>Zadnji podsjetnik</th><th></th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for c in candidates %}
+      <tr>
+        <td><a href="{{ url_for('partner_detail', oib=c.partner.oib) }}">{{ c.partner.name }}</a>
+          {% if not c.partner.email %}<span class="warn-text" title="E-mail nije upisan"> ⚠</span>{% endif %}
+        </td>
+        <td class="num"><strong>{{ c.outstanding_cents|eur }}</strong></td>
+        <td class="num">{{ c.overdue_count }}</td>
+        <td class="num">{{ c.max_days_overdue }} d.</td>
+        <td><span class="badge b{{ [1,3,5][c.level - 1] }}"><span class="dot" style="background: var(--ramp-{{ [1,3,5][c.level - 1] }})"></span>{{ c.level }}. {{ level_names[c.level] }}</span></td>
+        <td>
+          {% if c.last %}
+            {{ c.last.level }}. razina, {{ c.last.drafted_at[:10]|hrdate }}
+            {% if c.last.sent_at %}<span class="ok">(poslan)</span>{% else %}<span class="muted">(skica)</span>{% endif %}
+          {% else %}<span class="muted">nikad</span>{% endif %}
+        </td>
+        <td><a class="btn ghost" href="{{ url_for('reminder_draft', oib=c.partner.oib) }}">Skiciraj</a></td>
+      </tr>
+    {% else %}
+      <tr><td colspan="7" class="muted">Nitko ne kasni s plaćanjem. 🎉</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="panel scroll-x">
+  <h2>Sve skice i poslani podsjetnici</h2>
+  <table>
+    <thead><tr><th>#</th><th>Partner</th><th>Razina</th><th class="num">Iznos</th><th>Skiciran</th><th>Status</th></tr></thead>
+    <tbody>
+    {% for d in drafts %}
+      <tr>
+        <td><a href="{{ url_for('reminder_detail', rid=d.id) }}">{{ d.id }}</a></td>
+        <td>{{ d.partner_name }}</td>
+        <td>{{ d.level }}. {{ level_names[d.level] }}</td>
+        <td class="num">{{ d.outstanding_cents|eur }}</td>
+        <td>{{ d.drafted_at[:10]|hrdate }}</td>
+        <td>{% if d.sent_at %}<span class="ok">✓ poslan {{ d.sent_at[:10]|hrdate }}</span>{% else %}<span class="muted">skica</span>{% endif %}</td>
+      </tr>
+    {% else %}
+      <tr><td colspan="6" class="muted">Još nema skica.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

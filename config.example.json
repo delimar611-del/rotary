@@ -1,0 +1,15 @@
+{
+  "company": {
+    "name": "DETONEX d.o.o.",
+    "oib": "{{VAŠ_OIB}}",
+    "iban": "{{VAŠ_IBAN}}",
+    "bank": "{{NAZIV_BANKE}}",
+    "address": "{{ADRESA_TVRTKE}}",
+    "contact_name": "{{IME_I_PREZIME}}",
+    "contact_email": "{{VAŠ_EMAIL}}",
+    "contact_phone": "{{VAŠ_TELEFON}}"
+  },
+  "default_payment_terms_days": 30,
+  "aging_bucket_bounds": [15, 30, 60, 90],
+  "reminder_level_bounds": [15, 45]
+}

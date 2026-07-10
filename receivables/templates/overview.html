@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}Pregled{% endblock %}
+{% block content %}
+<h1>Pregled potraživanja</h1>
+
+<div class="cards">
+  <div class="card">
+    <div class="label">Otvoreno ukupno</div>
+    <div class="value">{{ outstanding|eur }}</div>
+    <div class="sub">{{ open_count }} računa · {{ partner_count }} partnera</div>
+  </div>
+  <div class="card">
+    <div class="label">Od toga dospjelo</div>
+    <div class="value">{{ overdue|eur }}</div>
+    <div class="sub">{{ totals[1:]|sum(attribute='count') }} računa kasni</div>
+  </div>
+  <div class="card {{ 'alert' if unmatched_count }}">
+    <div class="label">Nespojene uplate</div>
+    <div class="value">{{ unmatched_count }}</div>
+    <div class="sub">{{ unmatched_sum|eur }} — <a href="{{ url_for('control_view') }}">provjeri</a></div>
+  </div>
+  <div class="card">
+    <div class="label">Storno računi</div>
+    <div class="value">{{ storno_count }}</div>
+    <div class="sub"><a href="{{ url_for('control_view') }}">detalji</a></div>
+  </div>
+</div>
+
+<div class="panel">
+  <h2>Dospijeće (aging)</h2>
+  {% for t in totals %}
+  <div class="aging-row">
+    <span class="lbl">{{ t.label }}</span>
+    <a class="track" href="{{ url_for('invoices_view', bucket=loop.index0) }}"
+       title="{{ t.label }}: {{ t.count }} računa, {{ t.cents|eur }}">
+      <div class="bar" style="width: {{ (t.cents / max_bucket * 100)|round(1) if max_bucket else 0 }}%; background: var(--ramp-{{ loop.index0 }});"></div>
+    </a>
+    <span class="val">{{ t.count }} rn. · {{ t.cents|eur }}</span>
+  </div>
+  {% endfor %}
+  <p class="muted" style="font-size:12.5px; margin:10px 0 0;">Klik na traku otvara popis računa u tom razredu.</p>
+</div>
+
+<div class="grid-2">
+  <div class="panel">
+    <h2>Najveći dužnici</h2>
+    <table>
+      <thead><tr><th>Partner</th><th class="num">Otvoreno</th><th class="num">Kasni najviše</th></tr></thead>
+      <tbody>
+      {% for p in partners %}
+        <tr>
+          <td><a href="{{ url_for('partner_detail', oib=p.oib) }}">{{ p.name }}</a></td>
+          <td class="num">{{ p.outstanding_cents|eur }}</td>
+          <td class="num">{% if p.max_days_overdue %}{{ p.max_days_overdue }} d.{% else %}<span class="muted">—</span>{% endif %}</td>
+        </tr>
+      {% else %}
+        <tr><td colspan="3" class="muted">Nema otvorenih potraživanja. 🎉</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="panel">
+    <h2>Povijest uvoza</h2>
+    <table>
+      <thead><tr><th>#</th><th>Datum</th><th class="num">Računa</th><th class="num">Otvoreno</th></tr></thead>
+      <tbody>
+      {% for r in runs %}
+        <tr>
+          <td>{{ r.id }}</td>
+          <td>{{ r.imported_at[:16].replace('T', ' ') }}</td>
+          <td class="num">{{ r.invoice_count }}</td>
+          <td class="num">{{ r.outstanding_cents|eur }}</td>
+        </tr>
+      {% else %}
+        <tr><td colspan="4" class="muted">Još nema uvoza — pokrenite <code>python -m receivables ingest matched.json</code></td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}{{ partner.name }}{% endblock %}
+{% block content %}
+<h1>{{ partner.name }}</h1>
+<p class="muted">OIB: {{ partner.oib }} · otvoreno: <strong style="color: var(--ink)">{{ outstanding|eur }}</strong></p>
+
+{% if saved %}<div class="flash">✓ Podaci partnera su spremljeni.</div>{% endif %}
+
+<div class="grid-2">
+  <div class="panel">
+    <h2>Podaci partnera</h2>
+    <form method="post">
+      <label for="email">E-mail za podsjetnike</label>
+      <input type="email" id="email" name="email" value="{{ partner.email }}" placeholder="npr. racunovodstvo@partner.hr">
+      <label for="contact">Kontakt osoba</label>
+      <input type="text" id="contact" name="contact" value="{{ partner.contact }}" placeholder="ime i prezime / telefon">
+      <label for="payment_terms_days">Rok plaćanja (dana) — prazno = zadano ({{ cfg.default_payment_terms_days }})</label>
+      <input type="number" id="payment_terms_days" name="payment_terms_days" min="0"
+             value="{{ partner.payment_terms_days if partner.payment_terms_days is not none }}">
+      <label for="notes">Bilješke</label>
+      <textarea id="notes" name="notes">{{ partner.notes }}</textarea>
+      <p><button type="submit">Spremi</button></p>
+    </form>
+  </div>
+
+  <div class="panel">
+    <h2>Poslani podsjetnici</h2>
+    <table>
+      <thead><tr><th>Datum</th><th>Razina</th><th class="num">Iznos</th><th>Status</th></tr></thead>
+      <tbody>
+      {% for r in reminders %}
+        <tr>
+          <td><a href="{{ url_for('reminder_detail', rid=r.id) }}">{{ r.drafted_at[:10]|hrdate }}</a></td>
+          <td>{{ r.level }}. razina</td>
+          <td class="num">{{ r.outstanding_cents|eur }}</td>
+          <td>{% if r.sent_at %}<span class="ok">poslan {{ r.sent_at[:10]|hrdate }}</span>{% else %}<span class="muted">skica</span>{% endif %}</td>
+        </tr>
+      {% else %}
+        <tr><td colspan="4" class="muted">Još nema podsjetnika za ovog partnera.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% if invoices %}
+    <p><a class="btn" href="{{ url_for('reminder_draft', oib=partner.oib) }}">Skiciraj podsjetnik</a></p>
+    {% endif %}
+  </div>
+</div>
+
+<div class="panel scroll-x">
+  <h2>Otvoreni računi</h2>
+  <table>
+    <thead><tr><th>Račun</th><th>Izdan</th><th>Dospijeće</th><th class="num">Kašnjenje</th><th>Razred</th><th class="num">Otvoreno</th></tr></thead>
+    <tbody>
+    {% for i in invoices %}
+      <tr>
+        <td>{{ i.inv }}</td>
+        <td>{{ i.issue_date|hrdate }}</td>
+        <td>{{ i.due_date|hrdate }}</td>
+        <td class="num">{% if i.days_overdue > 0 %}{{ i.days_overdue }} d.{% else %}<span class="muted">—</span>{% endif %}</td>
+        <td><span class="badge b{{ i.bucket }}"><span class="dot" style="background: var(--ramp-{{ i.bucket }})"></span>{{ bucket_names[i.bucket] }}</span></td>
+        <td class="num"><strong>{{ i.outstanding_cents|eur }}</strong></td>
+      </tr>
+    {% else %}
+      <tr><td colspan="6" class="muted">Nema otvorenih računa.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="panel scroll-x">
+  <h2>Svi računi (povijest)</h2>
+  <table>
+    <thead><tr><th>Račun</th><th>Izdan</th><th>Status</th><th class="num">Iznos</th><th class="num">Plaćeno</th></tr></thead>
+    <tbody>
+    {% for r in all_rows %}
+      <tr>
+        <td>{{ r.inv }}</td>
+        <td>{{ r.issue_date|hrdate }}</td>
+        <td>
+          {% if r.pay_status.startswith('PAID') %}<span class="badge st-paid">✓ PLAĆENO{{ ' (platforma)' if 'platform' in r.pay_status }}</span>
+          {% elif r.pay_status == 'PARTIAL' %}<span class="badge st-partial">⚠ DJELOMIČNO</span>
+          {% elif 'storno' in r.pay_status %}<span class="badge st-storno">✕ STORNO</span>
+          {% else %}<span class="badge">NEPLAĆENO</span>{% endif %}
+        </td>
+        <td class="num">{{ r.amount_cents|eur }}</td>
+        <td class="num">{{ r.paid_cents|eur }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

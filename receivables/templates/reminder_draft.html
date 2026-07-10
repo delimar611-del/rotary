@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Skica podsjetnika{% endblock %}
+{% block content %}
+<h1>Skica podsjetnika — {{ partner.name }}</h1>
+
+{% if draft is none %}
+  <div class="panel"><p class="muted">Ovaj partner nema dospjelih računa — podsjetnik nije potreban.</p></div>
+{% else %}
+  <div class="toolbar">
+    <span class="muted">Razina:</span>
+    {% for lvl, name in level_names.items() %}
+      <a class="chip {{ 'active' if level == lvl }}"
+         href="{{ url_for('reminder_draft', oib=partner.oib, level=lvl) }}">{{ lvl }}. {{ name }}{{ ' (predloženo)' if suggested == lvl }}</a>
+    {% endfor %}
+  </div>
+
+  {% if not partner.email %}
+  <div class="flash" style="border-color: var(--warning); background: color-mix(in srgb, var(--warning) 12%, var(--surface));">
+    ⚠ Partner nema upisan e-mail — <a href="{{ url_for('partner_detail', oib=partner.oib) }}">dopunite imenik</a> prije slanja.
+  </div>
+  {% endif %}
+
+  <div class="panel">
+    <p><strong>Za:</strong> {{ partner.email or '—' }}<br>
+       <strong>Predmet:</strong> {{ draft.subject }}</p>
+    <pre class="mail">{{ draft.body }}</pre>
+    <form method="post" action="{{ url_for('reminder_draft', oib=partner.oib, level=level) }}">
+      <button type="submit">Spremi skicu u outbox/</button>
+      <span class="muted" style="margin-left: 10px;">Sprema .txt datoteku i bilježi skicu — ništa se ne šalje.</span>
+    </form>
+  </div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Partneri{% endblock %}
+{% block content %}
+<h1>Partneri</h1>
+
+{% if missing_email %}
+<div class="flash" style="border-color: var(--warning); background: color-mix(in srgb, var(--warning) 12%, var(--surface));">
+  ⚠ {{ missing_email }} partnera s otvorenim dugom nema upisan e-mail — podsjetnici se za njih ne mogu adresirati.
+</div>
+{% endif %}
+
+<div class="panel scroll-x">
+  <table>
+    <thead>
+      <tr>
+        <th>Partner</th><th>OIB</th><th>E-mail</th><th>Kontakt</th>
+        <th class="num">Rok plaćanja</th><th class="num">Otvoreno rn.</th>
+        <th class="num">Otvoreno</th><th class="num">Kasni najviše</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for p in partners %}
+      <tr>
+        <td><a href="{{ url_for('partner_detail', oib=p.row.oib) }}">{{ p.row.name }}</a></td>
+        <td class="muted">{{ p.row.oib }}</td>
+        <td>{% if p.row.email %}{{ p.row.email }}{% else %}<span class="{{ 'warn-text' if p.outstanding_cents else 'muted' }}">nedostaje</span>{% endif %}</td>
+        <td>{{ p.row.contact or '—' }}</td>
+        <td class="num">{{ p.row.payment_terms_days if p.row.payment_terms_days is not none else cfg.default_payment_terms_days ~ ' (zadano)' }} d.</td>
+        <td class="num">{{ p.invoice_count or '—' }}</td>
+        <td class="num">{% if p.outstanding_cents %}<strong>{{ p.outstanding_cents|eur }}</strong>{% else %}<span class="muted">—</span>{% endif %}</td>
+        <td class="num">{% if p.max_days_overdue %}{{ p.max_days_overdue }} d.{% else %}<span class="muted">—</span>{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

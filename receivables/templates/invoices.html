@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Računi{% endblock %}
+{% block content %}
+<h1>Otvoreni računi</h1>
+
+<div class="toolbar">
+  <a class="chip {{ 'active' if bucket is none }}" href="{{ url_for('invoices_view', sort=sort) }}">Svi razredi</a>
+  {% for name in bucket_names %}
+    <a class="chip {{ 'active' if bucket == loop.index0|string }}"
+       href="{{ url_for('invoices_view', bucket=loop.index0, sort=sort) }}">{{ name }}</a>
+  {% endfor %}
+  <span class="muted" style="margin-left:auto">Sortiraj:
+    <a href="{{ url_for('invoices_view', bucket=bucket, sort='overdue') }}" class="{{ 'ok' if sort == 'overdue' }}">kašnjenje</a> ·
+    <a href="{{ url_for('invoices_view', bucket=bucket, sort='amount') }}" class="{{ 'ok' if sort == 'amount' }}">iznos</a> ·
+    <a href="{{ url_for('invoices_view', bucket=bucket, sort='buyer') }}" class="{{ 'ok' if sort == 'buyer' }}">kupac</a> ·
+    <a href="{{ url_for('invoices_view', bucket=bucket, sort='due') }}" class="{{ 'ok' if sort == 'due' }}">dospijeće</a>
+  </span>
+</div>
+
+<div class="panel scroll-x">
+  <table>
+    <thead>
+      <tr>
+        <th>Račun</th><th>Kupac</th><th>Izdan</th><th>Dospijeće</th>
+        <th class="num">Kašnjenje</th><th>Razred</th><th>Status</th>
+        <th class="num">Iznos</th><th class="num">Plaćeno</th><th class="num">Otvoreno</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for i in invoices %}
+      <tr>
+        <td>{{ i.inv }}</td>
+        <td><a href="{{ url_for('partner_detail', oib=i.buyer_oib) }}">{{ i.buyer }}</a></td>
+        <td>{{ i.issue_date|hrdate }}</td>
+        <td>{{ i.due_date|hrdate }}</td>
+        <td class="num">{% if i.days_overdue > 0 %}{{ i.days_overdue }} d.{% else %}<span class="muted">—</span>{% endif %}</td>
+        <td><span class="badge b{{ i.bucket }}"><span class="dot" style="background: var(--ramp-{{ i.bucket }})"></span>{{ bucket_names[i.bucket] }}</span></td>
+        <td>
+          {% if i.pay_status == 'PARTIAL' %}
+            <span class="badge st-partial">⚠ DJELOMIČNO</span>
+          {% else %}
+            <span class="badge">NEPLAĆENO</span>
+          {% endif %}
+        </td>
+        <td class="num">{{ i.amount_cents|eur }}</td>
+        <td class="num">{{ i.paid_cents|eur }}</td>
+        <td class="num"><strong>{{ i.outstanding_cents|eur }}</strong></td>
+      </tr>
+    {% else %}
+      <tr><td colspan="10" class="muted">Nema računa u ovom razredu.</td></tr>
+    {% endfor %}
+    </tbody>
+    {% if invoices %}
+    <tfoot>
+      <tr>
+        <td colspan="9" style="text-align:right; color: var(--ink-2);">Ukupno ({{ invoices|length }} rn.)</td>
+        <td class="num"><strong>{{ invoices|sum(attribute='outstanding_cents')|eur }}</strong></td>
+      </tr>
+    </tfoot>
+    {% endif %}
+  </table>
+</div>
+{% endblock %}
