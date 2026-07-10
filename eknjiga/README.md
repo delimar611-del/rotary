@@ -148,10 +148,32 @@ python3 -m unittest test_schema -v
   raspon datuma. Storno uz obrazloženje, audit, role — kao ostale knjige.
 - Testovi: `python3 -m unittest test_streljivo` (10 testova).
 
+## Korak 5 — PDF ispisi, migracija (CSV uvoz), izvoz, zalihe
+
+- **PDF ispis po obrascu** (`/ispis/<knjiga>.pdf`, gumb „Ispis PDF” na svakoj
+  knjizi): A4 vodoravno, oznaka obrasca (Prilog II. — Obrazac 1 / Obrazac 2 /
+  Prilog VIII. — Obrazac 3), naslov knjige, podaci trgovine iz postavki,
+  tablica s nazivima kolona i numeracijom 1.-10., ponavljanje zaglavlja na
+  svakoj stranici, numeracija stranica. DejaVu fontovi su priloženi u
+  `static/fonts/` pa dijakritika radi na svakoj platformi. Raspon ispisa:
+  od-do rednog broja i/ili datuma. Strukturirana polja spajaju se u jedan
+  string točno kao u papirnatoj knjizi; stornirani zapisi nose oznaku
+  „STORNIRANO: razlog” u napomeni.
+- **Migracija** (`/migracija`, vlasnik): CSV predložak po knjizi + uvoz.
+  Sve-ili-ništa uz popis grešaka po recima; redni brojevi iz papirnate
+  knjige ili automatski; dobavljači/kupci se spajaju po OIB-u pa po nazivu;
+  uvoz prodaje automatski povezuje ulaze po tvorničkom broju i označava ih
+  prodanima; `legacy_*` kolone čuvaju referencu na papirnatu knjigu.
+- **CSV izvoz** (vlasnik): sve tri knjige, UTF-8 s BOM-om (izravno u Excel),
+  `;` separator.
+- **Zalihe** (`/zalihe`): komadi na stanju grupirani po kategoriji, marki i
+  kalibru + ukupni brojevi po kategoriji, s linkom na pojedinačne komade.
+- Testovi: `python3 -m unittest test_ispis_uvoz` (10 testova).
+
 ## Plan (svaki korak se potvrđuje)
 
 1. ✅ Shema baze + šifrarnici + audit log
 2. ✅ Ulazna knjiga: pojedinačni + bulk unos, pretraga
 3. ✅ Prodajna knjiga s križnim povezivanjem i statusima
 4. ✅ Streljivo
-5. ⬜ PDF ispisi identični obrascima + CSV import za migraciju
+5. ✅ PDF ispisi identični obrascima + CSV import za migraciju

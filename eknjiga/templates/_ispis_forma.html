@@ -1,0 +1,12 @@
+{# Forma za PDF ispis raspona. Očekuje: knjiga ('ulaz'/'prodaja'/'streljivo'). #}
+<details class="ispis-forma">
+  <summary>🖨 Ispis PDF (obrazac)</summary>
+  <form method="get" action="{{ url_for('ispis_pdf', knjiga=knjiga) }}" target="_blank" class="searchbar">
+    <label>Od r.br. <input name="rb_od" inputmode="numeric" style="width:90px"></label>
+    <label>Do r.br. <input name="rb_do" inputmode="numeric" style="width:90px"></label>
+    <label>Od datuma <input type="date" name="datum_od"></label>
+    <label>Do datuma <input type="date" name="datum_do"></label>
+    <button type="submit">Generiraj PDF</button>
+    <span class="hint">Prazno = cijela knjiga.</span>
+  </form>
+</details>

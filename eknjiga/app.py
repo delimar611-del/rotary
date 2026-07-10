@@ -14,11 +14,13 @@ import secrets
 import sqlite3
 from pathlib import Path
 
-from flask import (Flask, abort, flash, g, jsonify, redirect, render_template,
-                   request, session, url_for)
+from flask import (Flask, Response, abort, flash, g, jsonify, redirect,
+                   render_template, request, session, url_for)
 from werkzeug.security import check_password_hash, generate_password_hash
 
 import db
+import ispis
+import uvoz
 
 KATEGORIJE = ("A", "B", "C")
 
@@ -1213,6 +1215,142 @@ def register_routes(app: Flask) -> None:
     def kupci():
         return _sifrarnik("kupci", "Šifrarnik kupaca", "kupac", "kupci",
                           "SELECT COUNT(*) FROM prodaja p WHERE p.kupac_id = t.id")
+
+    # ---------------- Ispis (PDF po obrascu), izvoz, zalihe, migracija ----------------
+
+    _ISPIS_SQL = {
+        "ulaz": ("SELECT u.*, d.naziv AS dobavljac_naziv, d.adresa AS dobavljac_adresa, "
+                 "d.oib AS dobavljac_oib FROM ulaz u JOIN dobavljaci d ON d.id = u.dobavljac_id",
+                 "u", "datum_nabave"),
+        "prodaja": ("SELECT p.*, k.naziv AS kupac_naziv, k.adresa AS kupac_adresa, "
+                    "k.oib AS kupac_oib FROM prodaja p JOIN kupci k ON k.id = p.kupac_id",
+                    "p", "datum_prodaje"),
+        "streljivo": ("SELECT s.*, k.naziv AS kupac_naziv, k.adresa AS kupac_adresa, "
+                      "k.oib AS kupac_oib FROM streljivo s JOIN kupci k ON k.id = s.kupac_id",
+                      "s", "datum_prodaje"),
+    }
+
+    @app.get("/ispis/<knjiga>.pdf")
+    @login_required
+    def ispis_pdf(knjiga):
+        if knjiga not in _ISPIS_SQL:
+            abort(404)
+        conn = get_conn()
+        sql, alias, datum_polje = _ISPIS_SQL[knjiga]
+        uvjeti, params, opis = [], [], []
+        rb_od = request.args.get("rb_od", "").strip()
+        rb_do = request.args.get("rb_do", "").strip()
+        datum_od = request.args.get("datum_od", "").strip()
+        datum_do = request.args.get("datum_do", "").strip()
+        if rb_od.isdigit():
+            uvjeti.append(f"{alias}.redni_broj >= ?"); params.append(int(rb_od))
+            opis.append(f"od r.br. {rb_od}")
+        if rb_do.isdigit():
+            uvjeti.append(f"{alias}.redni_broj <= ?"); params.append(int(rb_do))
+            opis.append(f"do r.br. {rb_do}")
+        if datum_od:
+            uvjeti.append(f"{alias}.{datum_polje} >= ?"); params.append(datum_od)
+            opis.append(f"od {ispis.hr_datum(datum_od)}")
+        if datum_do:
+            uvjeti.append(f"{alias}.{datum_polje} <= ?"); params.append(datum_do)
+            opis.append(f"do {ispis.hr_datum(datum_do)}")
+        if uvjeti:
+            sql += " WHERE " + " AND ".join(uvjeti)
+        sql += f" ORDER BY {alias}.redni_broj"
+        zapisi = conn.execute(sql, params).fetchall()
+
+        trgovina = {
+            "naziv": db.get_postavka(conn, "trgovina.naziv", ""),
+            "adresa": db.get_postavka(conn, "trgovina.adresa", ""),
+            "oib": db.get_postavka(conn, "trgovina.oib", ""),
+        }
+        retci = [ispis.REDAK[knjiga](z) for z in zapisi]
+        pdf_bytes = ispis.ispis_pdf(knjiga, retci, trgovina,
+                                    podnaslov=", ".join(opis))
+        return Response(pdf_bytes, mimetype="application/pdf", headers={
+            "Content-Disposition": f'inline; filename="{knjiga}.pdf"'})
+
+    @app.get("/izvoz/<knjiga>.csv")
+    @vlasnik_required
+    def izvoz_csv(knjiga):
+        if knjiga not in uvoz.IZVOZ_SQL:
+            abort(404)
+        sadrzaj = uvoz.izvoz_csv(get_conn(), knjiga)
+        return Response("\ufeff" + sadrzaj, mimetype="text/csv; charset=utf-8",
+                        headers={"Content-Disposition":
+                                 f'attachment; filename="{knjiga}.csv"'})
+
+    @app.get("/zalihe")
+    @login_required
+    def zalihe():
+        conn = get_conn()
+        grupe = conn.execute(
+            "SELECT kategorija, marka_model, kalibar, COUNT(*) AS komada "
+            "FROM ulaz WHERE status = 'na_stanju' "
+            "GROUP BY kategorija, marka_model, kalibar "
+            "ORDER BY kategorija, marka_model, kalibar"
+        ).fetchall()
+        po_kategoriji = conn.execute(
+            "SELECT kategorija, COUNT(*) AS komada FROM ulaz "
+            "WHERE status = 'na_stanju' GROUP BY kategorija ORDER BY kategorija"
+        ).fetchall()
+        ukupno = sum(r["komada"] for r in po_kategoriji)
+        return render_template("zalihe.html", grupe=grupe,
+                               po_kategoriji=po_kategoriji, ukupno=ukupno)
+
+    @app.get("/migracija/predlozak/<knjiga>.csv")
+    @vlasnik_required
+    def migracija_predlozak(knjiga):
+        if knjiga not in uvoz.PREDLOSCI:
+            abort(404)
+        return Response("\ufeff" + uvoz.predlozak_csv(knjiga),
+                        mimetype="text/csv; charset=utf-8",
+                        headers={"Content-Disposition":
+                                 f'attachment; filename="predlozak-{knjiga}.csv"'})
+
+    @app.route("/migracija", methods=["GET", "POST"])
+    @vlasnik_required
+    def migracija():
+        conn = get_conn()
+        if request.method == "POST":
+            knjiga = request.form.get("knjiga", "")
+            datoteka = request.files.get("datoteka")
+            if knjiga not in uvoz.PREDLOSCI:
+                flash("Nepoznata knjiga.", "error")
+                return redirect(url_for("migracija"))
+            if datoteka is None or not datoteka.filename:
+                flash("Odaberite CSV datoteku.", "error")
+                return redirect(url_for("migracija"))
+            try:
+                tekst = datoteka.read().decode("utf-8-sig")
+            except UnicodeDecodeError:
+                flash("Datoteka nije UTF-8. Spremite CSV kao UTF-8 pa pokušajte "
+                      "ponovno.", "error")
+                return redirect(url_for("migracija"))
+
+            conn.execute("BEGIN IMMEDIATE")
+            try:
+                broj, greske = uvoz.uvezi_csv(conn, knjiga, tekst, g.user)
+                if greske:
+                    conn.execute("ROLLBACK")
+                else:
+                    conn.execute("COMMIT")
+            except Exception:
+                conn.execute("ROLLBACK")
+                raise
+            if greske:
+                flash(f"Uvoz odbijen — ništa nije upisano. Greške ({len(greske)}):", "error")
+                for gr in greske[:30]:
+                    flash(gr, "error")
+                if len(greske) > 30:
+                    flash(f"… i još {len(greske) - 30} grešaka.", "error")
+            else:
+                flash(f"Uvezeno {broj} zapisa u knjigu „{knjiga}”.", "ok")
+            return redirect(url_for("migracija"))
+
+        brojevi = {k: conn.execute(f"SELECT COUNT(*) AS n FROM {k}").fetchone()["n"]
+                   for k in ("ulaz", "prodaja", "streljivo")}
+        return render_template("migracija.html", brojevi=brojevi)
 
     # ---------------- Postavke (vlasnik) ----------------
 

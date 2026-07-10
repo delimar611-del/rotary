@@ -20,6 +20,8 @@
   <a href="{{ url_for('streljivo_lista') }}">Poništi</a>
 </form>
 
+{% with knjiga='streljivo' %}{% include "_ispis_forma.html" %}{% endwith %}
+
 <div class="tablewrap">
 <table class="knjiga">
   <thead>

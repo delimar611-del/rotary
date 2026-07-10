@@ -100,6 +100,10 @@ table.audit { border-collapse: collapse; width: 100%; font-size: 12px; }
 table.audit th, table.audit td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #e7edf3; vertical-align: top; }
 td.jsoncell { font-family: ui-monospace, monospace; word-break: break-all; color: #4a5462; }
 
+.ispis-forma { margin: 0 0 12px; }
+.ispis-forma summary { cursor: pointer; font-size: 13px; color: var(--boja); font-weight: 600; }
+.ispis-forma .searchbar { margin: 8px 0 0; }
+
 .autocomplete { position: relative; }
 .autocomplete-lista {
   position: absolute; z-index: 20; left: 0; right: 0; margin: 0; padding: 0;

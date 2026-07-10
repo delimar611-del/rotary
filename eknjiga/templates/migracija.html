@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Migracija i izvoz — eKnjiga Oružja{% endblock %}
+{% block content %}
+<div class="pagehead"><h1>Migracija papirnatih knjiga i izvoz</h1></div>
+
+<div class="card">
+  <h2>CSV uvoz</h2>
+  <p class="meta">
+    Preuzmite predložak, prepišite podatke iz papirnate knjige (Excel/LibreOffice,
+    spremite kao CSV UTF-8) i učitajte. Datumi u formatu <strong>GGGG-MM-DD</strong>;
+    separator <strong>;</strong> ili <strong>,</strong>. Kolona
+    <code>redni_broj</code> može ostati prazna (dodjeljuje se automatski) ili
+    nositi broj iz papirnate knjige. Kolone <code>legacy_*</code> čuvaju referencu
+    na papirnatu knjigu (broj knjige, stranica, redni broj).
+    Uvoz je <strong>sve-ili-ništa</strong>: bilo koja greška odbija cijelu
+    datoteku s popisom grešaka po recima. Kod uvoza prodaje komadi se automatski
+    povezuju s ulazima po tvorničkom broju i označavaju prodanima.
+  </p>
+
+  {% for knjiga, naslov in [('ulaz', 'Knjiga nabavljenog oružja'),
+                            ('prodaja', 'Knjiga prodanog oružja'),
+                            ('streljivo', 'Evidencija streljiva')] %}
+  <fieldset>
+    <legend>{{ naslov }} <span class="hint">(trenutno {{ brojevi[knjiga] }} zapisa)</span></legend>
+    <form method="post" enctype="multipart/form-data" class="searchbar">
+      <input type="hidden" name="knjiga" value="{{ knjiga }}">
+      <a href="{{ url_for('migracija_predlozak', knjiga=knjiga) }}">Preuzmi predložak</a>
+      <input type="file" name="datoteka" accept=".csv,text/csv" required>
+      <button type="submit">Uvezi</button>
+    </form>
+  </fieldset>
+  {% endfor %}
+</div>
+
+<div class="card">
+  <h2>CSV izvoz</h2>
+  <p class="meta">Kompletan sadržaj knjige (uključujući storna i legacy reference), UTF-8 sa BOM-om — otvara se izravno u Excelu.</p>
+  <div class="actions">
+    <a class="btn btn-secondary" href="{{ url_for('izvoz_csv', knjiga='ulaz') }}">Izvoz ulazne knjige</a>
+    <a class="btn btn-secondary" href="{{ url_for('izvoz_csv', knjiga='prodaja') }}">Izvoz prodajne knjige</a>
+    <a class="btn btn-secondary" href="{{ url_for('izvoz_csv', knjiga='streljivo') }}">Izvoz streljiva</a>
+  </div>
+</div>
+{% endblock %}

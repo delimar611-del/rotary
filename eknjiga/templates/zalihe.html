@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Stanje zaliha — eKnjiga Oružja{% endblock %}
+{% block content %}
+<div class="pagehead">
+  <h1>Stanje zaliha</h1>
+  <div class="actions">
+    <a class="btn btn-secondary" href="{{ url_for('ulaz_lista', status='na_stanju') }}">Svi komadi na stanju</a>
+  </div>
+</div>
+
+<p class="meta">Ukupno na stanju: <strong>{{ ukupno }}</strong>
+  {% for k in po_kategoriji %} · kat. {{ k['kategorija'] }}: <strong>{{ k['komada'] }}</strong>{% endfor %}
+</p>
+
+<div class="tablewrap">
+<table class="knjiga">
+  <thead><tr><th>Kategorija</th><th>Marka i model</th><th>Kalibar</th><th>Komada na stanju</th><th></th></tr></thead>
+  <tbody>
+  {% for gr in grupe %}
+    <tr>
+      <td>{{ gr['kategorija'] }}</td>
+      <td>{{ gr['marka_model'] }}</td>
+      <td>{{ gr['kalibar'] }}</td>
+      <td><strong>{{ gr['komada'] }}</strong></td>
+      <td><a href="{{ url_for('ulaz_lista', status='na_stanju', q=gr['marka_model']) }}">prikaži komade</a></td>
+    </tr>
+  {% else %}
+    <tr><td colspan="5" class="empty">Nema komada na stanju.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}
