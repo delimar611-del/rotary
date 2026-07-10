@@ -1,0 +1,9 @@
+[
+  {"inv": "601/P1/1", "buyer": "Trgovina Čavlović d.o.o.", "buyer_oib": "12345678901", "date": "10.04.2026", "amount": 1000.00, "storno": false},
+  {"inv": "602/P1/1", "buyer": "Trgovina Čavlović d.o.o.", "buyer_oib": "12345678901", "date": "10.05.2026", "amount": 500.00, "storno": false},
+  {"inv": "603/P1/1", "buyer": "Trgovina Čavlović d.o.o.", "buyer_oib": "12345678901", "date": "10.06.2026", "amount": 750.00, "storno": false},
+  {"inv": "604/P1/1", "buyer": "Pekarnica Đurđica, obrt", "buyer_oib": "34567890123", "date": "01.05.2026", "amount": 400.00, "storno": false},
+  {"inv": "605/P1/1", "buyer": "Kiosk Žnidarić", "buyer_oib": "", "date": "20.05.2026", "amount": 300.00, "storno": false},
+  {"inv": "606/P1/1", "buyer": "Konoba Matić", "buyer_oib": "90123456789", "date": "25.05.2026", "amount": 845.90, "storno": true},
+  {"inv": "607/P1/1", "buyer": "Konoba Matić", "buyer_oib": "90123456789", "date": "25.05.2026", "amount": 845.90, "storno": false}
+]

@@ -21,6 +21,22 @@ def cmd_ingest(args):
         print(f"  UPOZORENJE: {p}", file=sys.stderr)
 
 
+def cmd_match(args):
+    from . import matching
+    matched_path, unmatched_path, problems = matching.match_files(
+        args.invoices, args.payments)
+    print(f"Sparivanje gotovo: {matched_path} + {unmatched_path}")
+    for p in problems:
+        print(f"  UPOZORENJE: {p}", file=sys.stderr)
+    if args.no_ingest:
+        return
+    conn = db.connect(args.db)
+    summary = ingest.ingest(conn, matched_path, unmatched_path)
+    print(f"Uvoz #{summary['run_id']}: {summary['invoices']} računa,"
+          f" otvoreno {ingest.fmt_eur(summary['outstanding_cents'])},"
+          f" nespojenih uplata: {summary['unmatched']['payments'] if summary['unmatched'] else 0}")
+
+
 def cmd_report(args):
     cfg = config.load_config()
     conn = db.connect(args.db)
@@ -94,6 +110,15 @@ def main():
     p_ingest.add_argument("--unmatched", default=None,
                           help="putanja do JSON datoteke s nespojenim uplatama")
     p_ingest.set_defaults(func=cmd_ingest)
+
+    p_match = sub.add_parser(
+        "match",
+        help="FIFO spari uplate s računima (invoices.json + payments.json) i uvezi")
+    p_match.add_argument("invoices", help="JSON lista računa (vidi FORMAT.md)")
+    p_match.add_argument("payments", help="JSON lista uplata s izvoda")
+    p_match.add_argument("--no-ingest", action="store_true",
+                         help="samo napiši matched.json/unmatched.json, bez uvoza")
+    p_match.set_defaults(func=cmd_match)
 
     p_report = sub.add_parser("report", help="tekstualni pregled potraživanja")
     p_report.add_argument("--detail", action="store_true", help="ispiši i pojedinačne račune")

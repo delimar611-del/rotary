@@ -15,9 +15,13 @@ python -m receivables init-config   # stvori config.json — upišite IBAN, bank
 
 ## Tjedni tok rada
 
-1. Ručno se prijavite na ePoslovanje i pokrenite svoje skripte → `matched.json`
-   (i po želji JSON s nespojenim uplatama iz `match_payments.py`).
-2. `python -m receivables ingest matched.json --unmatched unmatched.json`
+1. Ručno se prijavite na ePoslovanje / internet bankarstvo i pripremite dvije
+   JSON liste po uputama iz `FORMAT.md`: `invoices.json` (računi) i
+   `payments.json` (uplate).
+2. `python -m receivables match invoices.json payments.json` — ugrađeno FIFO
+   sparivanje po kupcu (broj računa na uplati NIJE potreban) + uvoz.
+   Alternativno, ako već imate gotov `matched.json`:
+   `python -m receivables ingest matched.json --unmatched unmatched.json`
 3. `python -m receivables serve` → http://127.0.0.1:8077
 4. Na kartici **Podsjetnici** skicirajte e-mailove; skice se spremaju u
    `outbox/*.txt`, kopirate ih u svoj mail program i tek onda u aplikaciji

@@ -49,7 +49,17 @@ Model NE odlučuje što je plaćeno — samo prepisuje. Sparivanje radi aplikaci
 ```
 
 `payer_oib` upišite ako postoji na izvodu; ako ne postoji, ostavite `""` —
-sparivanje će pokušati po nazivu uplatitelja.
+sparivanje će pokušati po nazivu uplatitelja (velika/mala slova, kvačice i
+d.o.o./obrt dodaci ne smetaju).
+
+Uvoz u jednom koraku (FIFO sparivanje je ugrađeno u aplikaciju):
+
+```
+py -m receivables match invoices.json payments.json
+```
+
+Usput zapiše i `matched.json` + `unmatched.json` pored ulaznih datoteka,
+pa uvijek možete vidjeti što je s čime spojeno.
 
 ## Gotov prompt za jeftiniji model (kopirajte i priložite sirove podatke)
 

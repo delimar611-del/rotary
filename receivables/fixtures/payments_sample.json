@@ -1,0 +1,7 @@
+[
+  {"date": "15.06.2026", "payer": "TRGOVINA ČAVLOVIĆ D.O.O.", "payer_oib": "12345678901", "amount": 1500.00, "ref": ""},
+  {"date": "20.06.2026", "payer": "TRGOVINA ČAVLOVIĆ D.O.O.", "payer_oib": "", "amount": 400.00, "ref": "bez poziva na broj"},
+  {"date": "22.06.2026", "payer": "PEKARNICA ĐURĐICA OBRT", "payer_oib": "", "amount": 450.00, "ref": ""},
+  {"date": "25.06.2026", "payer": "KIOSK ZNIDARIC", "payer_oib": "", "amount": 300.00, "ref": ""},
+  {"date": "28.06.2026", "payer": "OPG BLAŽEVIĆ", "payer_oib": "", "amount": 218.60, "ref": "nepoznat kupac"}
+]
